@@ -1,0 +1,5 @@
+apiVersion: v2
+name: eim-keycloak
+description: Identity broker (OIDC/SAML federation — AD-8)
+type: application
+version: 0.1.0

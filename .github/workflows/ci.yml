@@ -1,0 +1,97 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  frontend:
+    name: Frontend & guardrails (strict TS, coverage, audit gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: OpenAPI -> types + zod codegen
+        run: pnpm codegen
+      - name: Generated artifacts fresh (NFR-103)
+        run: |
+          git diff --exit-code -- packages || (echo "generated artifacts stale — run: pnpm codegen" && exit 1)
+      - name: Lint + typecheck + tests with coverage floors (NFR-102/103)
+        run: pnpm turbo lint typecheck test
+      - name: Web production build
+        run: pnpm --filter @eim/web-app build
+      - name: Audit-coverage gate with self-test (AD-9 / NFR-64)
+        run: pnpm audit:mappings --self-test
+      - name: Golden calculation fixtures (NFR-100)
+        run: pnpm golden
+      - name: Float prohibition — negative control must fail (TG0-TST-3)
+        run: |
+          if (cd packages/shared-domain && pnpm exec eslint --no-ignore fixtures/float-violation.ts); then
+            echo "float fixture unexpectedly passed lint — the NFR-01 rule is not firing"; exit 1
+          else
+            echo "float fixture correctly rejected"
+          fi
+      - name: OpenAPI lint (spectral)
+        run: pnpm exec spectral lint openapi/core-api.yaml openapi/connectors.yaml openapi/calc-engine.yaml openapi/process.yaml openapi/plan-compiler.yaml
+
+  backend:
+    name: Quarkus services build + tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - run: mvn -B -ntp -f apps/pom.xml verify
+
+  helm:
+    name: Helm lint + substitution matrix (NFR-80/81)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.2
+      - run: helm dependency build platform/helm/eim-platform
+      - name: Lint all postures
+        run: |
+          for f in platform/helm/eim-platform/ci/*.yaml; do
+            helm lint platform/helm/eim-platform -f "$f"
+          done
+      - run: bash scripts/substitution-matrix.sh
+
+  scripts:
+    name: Shell + workflow lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: |
+          curl -sSL https://github.com/koalaman/shellcheck/releases/download/v0.10.0/shellcheck-v0.10.0.linux.x86_64.tar.xz | tar -xJ
+          ./shellcheck-v0.10.0/shellcheck scripts/*.sh
+      - name: actionlint
+        run: |
+          bash <(curl -sSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          ./actionlint -color
+
+  gitops:
+    name: Argo CD overlays render (kustomize)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          curl -sSL -o kustomize.tar.gz https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.5.0/kustomize_v5.5.0_linux_amd64.tar.gz
+          tar -xzf kustomize.tar.gz
+          for env in dev staging prod; do
+            ./kustomize build platform/argocd/apps/overlays/$env > /dev/null && echo "kustomize $env ok"
+          done

@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}
+  labels: { app: {{ .Chart.Name }} }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: {{ .Chart.Name }} }
+  template:
+    metadata:
+      labels: { app: {{ .Chart.Name }} }
+    spec:
+      containers:
+        - name: minio
+          image: {{ .Values.image }}
+          args: ["server", "/data", "--console-address", ":9001"]
+          env:
+            - name: MINIO_ROOT_USER
+              value: {{ required "eim-minio.rootUser is required (NFR-53)" .Values.rootUser | quote }}
+            - name: MINIO_ROOT_PASSWORD
+              value: {{ required "eim-minio.rootPassword is required (NFR-53)" .Values.rootPassword | quote }}
+          ports:
+            - name: api
+              containerPort: 9000
+            - name: console
+              containerPort: 9001
+          readinessProbe:
+            httpGet: { path: /minio/health/live, port: api }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Chart.Name }}

@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}
+  labels: { app: {{ .Chart.Name }} }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: {{ .Chart.Name }} }
+  template:
+    metadata:
+      labels: { app: {{ .Chart.Name }} }
+    spec:
+      containers:
+        - name: apisix
+          image: {{ .Values.image }}
+          env:
+            - name: APISIX_STAND_ALONE
+              value: "true"
+          ports:
+            - name: gateway
+              containerPort: 9080
+          readinessProbe:
+            tcpSocket: { port: gateway }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - name: config
+              mountPath: /usr/local/apisix/conf
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Chart.Name }}-config

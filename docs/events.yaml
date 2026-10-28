@@ -1,0 +1,52 @@
+# Domain event catalog (arch §8.3). Every topic MUST have an audit mapping
+# in docs/audit-mappings.yaml — enforced by scripts/check-audit-mappings.mjs.
+version: 1
+topics:
+  - name: eim.sync.completed
+    producer: eim-connectors
+    consumers: [eim-process, eim-core-api]
+    description: A connector sync batch finished (counts + quarantine summary)
+  - name: eim.sync.failed
+    producer: eim-connectors
+    consumers: [eim-process]
+    description: A connector sync batch failed
+  - name: eim.calc.run.requested
+    producer: [eim-process, eim-core-api]
+    consumers: [eim-calc-engine]
+    description: Orchestration requests a calculation run
+  - name: eim.calc.run.completed
+    producer: eim-calc-engine
+    consumers: [eim-process]
+    description: Calculation run finished (per-wave stats)
+  - name: eim.ledger.committed
+    producer: eim-calc-engine
+    consumers: [eim-process, eim-core-api]
+    description: Ledger entries committed atomically for a period
+  - name: eim.period.locked
+    producer: eim-process
+    consumers: [eim-core-api, eim-connectors]
+    description: PERIOD_LOCK executed; partition frozen
+  - name: eim.period.reopened
+    producer: eim-process
+    consumers: [eim-core-api, eim-connectors]
+    description: Break-glass reopen executed (dual approval)
+  - name: eim.trueup.required
+    producer: [eim-connectors, eim-core-api]
+    consumers: [eim-process]
+    description: Retro change detected against a locked period; queue review
+  - name: eim.trueup.posted
+    producer: eim-process
+    consumers: [eim-calc-engine, eim-core-api]
+    description: Approved true-up entries posted in the open period
+  - name: eim.dispute.created
+    producer: eim-core-api
+    consumers: [eim-process]
+    description: Payee submitted a dispute
+  - name: eim.dispute.updated
+    producer: eim-process
+    consumers: [eim-core-api]
+    description: Dispute state transition (review/approve/reject/adjust)
+  - name: eim.audit.appended
+    producer: audit-plane
+    consumers: [siem-sink]
+    description: Audit stream export record (PG remains system of record)

@@ -1,0 +1,5 @@
+apiVersion: v2
+name: eim-apisix
+description: APISIX API gateway (standalone config-provider mode; C3 / arch §8)
+type: application
+version: 0.1.0

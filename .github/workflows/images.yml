@@ -1,0 +1,62 @@
+name: images
+
+# TG0-INF-7: image pipeline — build, SBOM, CVE gate, push to GHCR on main.
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: ${{ github.repository_owner }}
+
+jobs:
+  build-scan-push:
+    name: ${{ matrix.service }} (SBOM + CVE gate)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [eim-web, eim-core-api, eim-connectors, eim-calc-engine, eim-process, eim-plan-compiler]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image (self-contained Dockerfile.build)
+        run: |
+          if [ "${{ matrix.service }}" = "eim-web" ]; then
+            docker build -t ${{ matrix.service }}:ci -f packages/web-app/Dockerfile.build packages/web-app
+          else
+            docker build -t ${{ matrix.service }}:ci -f apps/${{ matrix.service }}/Dockerfile.build apps/${{ matrix.service }}
+          fi
+
+      - name: SBOM (syft)
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ matrix.service }}:ci
+          format: spdx-json
+          artifact-name: sbom-${{ matrix.service }}.spdx.json
+
+      - name: CVE gate — block on critical (NFR-57)
+        uses: anchore/scan-action@v5
+        with:
+          image: ${{ matrix.service }}:ci
+          fail-build: true
+          severity-cutoff: critical
+
+      - name: Push to GHCR (main/tags only)
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - if: github.event_name == 'push'
+        run: |
+          TAG="${GITHUB_REF##*/}"
+          FULL="$REGISTRY/$OWNER/${{ matrix.service }}:${TAG}"
+          docker tag "${{ matrix.service }}:ci" "$FULL"
+          docker push "$FULL"

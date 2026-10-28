@@ -1,0 +1,22 @@
+# Production posture reference: external data plane (substitution values,
+# NFR-81) — real hosts/credentials supplied by the secret store at sync time.
+global:
+  databaseHost: REPLACE_EXTERNAL_POSTGRES_HOST
+  databasePassword: REPLACE_VIA_SECRET_STORE
+  kafkaBootstrapServers: REPLACE_EXTERNAL_KAFKA_BOOTSTRAP
+eim-postgres:
+  enabled: false
+eim-kafka:
+  enabled: false
+eim-minio:
+  enabled: false
+  # when re-enabled, rootUser/rootPassword come from the secret store
+eim-keycloak:
+  adminUsername: admin
+  adminPassword: REPLACE_VIA_SECRET_STORE
+eim-web:
+  replicas: 3
+eim-core-api:
+  replicas: 3
+eim-calc-engine:
+  replicas: 3

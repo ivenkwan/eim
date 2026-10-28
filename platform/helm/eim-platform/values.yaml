@@ -1,0 +1,49 @@
+# Default posture: single-namespace dev/embedded (TG0-INF-3 dev cluster).
+# Production/substitution postures: see ci/*.yaml and scripts/substitution-matrix.sh.
+global:
+  databaseHost: eim-postgres
+  databasePort: "5432"
+  databaseName: eim
+  databaseUser: eim
+  # databasePassword: REQUIRED via --set / external secrets (never defaulted)
+  kafkaBootstrapServers: eim-kafka:9092
+
+eim-web:
+  enabled: true
+eim-core-api:
+  enabled: true
+eim-connectors:
+  enabled: true
+eim-calc-engine:
+  enabled: true
+eim-process:
+  enabled: true
+eim-plan-compiler:
+  enabled: true
+
+eim-postgres:
+  enabled: true
+  image: apache/age:PG16_latest
+  auth:
+    database: eim
+    username: eim
+    # password: REQUIRED via --set (no default credentials in source — NFR-53)
+
+eim-kafka:
+  enabled: true
+  image: apache/kafka:3.9.0
+  clusterId: eim-dev-kraft-cluster-01
+
+eim-minio:
+  enabled: true
+  image: minio/minio:RELEASE.2024-08-29T01-40-52Z
+  # rootUser / rootPassword: REQUIRED via --set (NFR-53)
+
+eim-apisix:
+  enabled: true
+  image: apache/apisix:3.11.0
+
+eim-keycloak:
+  enabled: true
+  image: quay.io/keycloak/keycloak:26.0.7
+  # adminUsername / adminPassword: REQUIRED via --set (NFR-53)

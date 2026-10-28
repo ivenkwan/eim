@@ -1,0 +1,6 @@
+apiVersion: v2
+name: eim-postgres
+description: PostgreSQL 16 with Apache AGE (graph extension)
+type: application
+version: 0.1.0
+appVersion: "16"

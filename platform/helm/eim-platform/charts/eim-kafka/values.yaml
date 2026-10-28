@@ -1,0 +1,4 @@
+image: apache/kafka:3.9.0
+clusterId: eim-dev-kraft-cluster-01
+persistence:
+  size: 5Gi

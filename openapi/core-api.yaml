@@ -1,0 +1,82 @@
+openapi: 3.1.0
+info:
+  title: EIM Core API
+  version: 0.1.0
+  summary: Domain APIs for plans, statements, disputes, exports and administration
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/v1/hello:
+    get:
+      operationId: getHello
+      summary: Liveness hello from the service (read-only)
+      responses:
+        '200':
+          description: Service greeting
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HelloResponse'
+  /api/v1/admin/config-change:
+    post:
+      operationId: submitConfigChange
+      summary: Submit a versioned configuration change into the audit plane (skeleton)
+      x-audit:
+        action: CONFIG_CHANGE
+        stream: config
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigChangeRequest'
+      responses:
+        '202':
+          description: Change accepted into the audited config registry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigChangeAccepted'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    HelloResponse:
+      type: object
+      required: [service, status, message]
+      properties:
+        service:
+          type: string
+        status:
+          type: string
+          enum: [ok]
+        message:
+          type: string
+    ConfigChangeRequest:
+      type: object
+      required: [entity, reason]
+      properties:
+        entity:
+          type: string
+        payload:
+          type: string
+        reason:
+          type: string
+    ConfigChangeAccepted:
+      type: object
+      required: [accepted, requestId]
+      properties:
+        accepted:
+          type: boolean
+        requestId:
+          type: string
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string

@@ -1,0 +1,16 @@
+# Substitution posture B (NFR-81): external Kafka (e.g. Strimzi/Confluent),
+# embedded PostgreSQL+AGE.
+global:
+  databasePassword: lint-placeholder
+  kafkaBootstrapServers: corporate-kafka.example.internal:9092
+eim-kafka:
+  enabled: false
+eim-postgres:
+  auth:
+    password: lint-placeholder
+eim-minio:
+  rootUser: lint-user
+  rootPassword: lint-placeholder
+eim-keycloak:
+  adminUsername: lint-admin
+  adminPassword: lint-placeholder

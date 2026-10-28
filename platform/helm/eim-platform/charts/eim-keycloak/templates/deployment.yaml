@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}
+  labels: { app: {{ .Chart.Name }} }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: {{ .Chart.Name }} }
+  template:
+    metadata:
+      labels: { app: {{ .Chart.Name }} }
+    spec:
+      containers:
+        - name: keycloak
+          image: {{ .Values.image }}
+          args: ["start-dev", "--http-enabled=true", "--http-port=8080"]
+          env:
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
+              value: {{ required "eim-keycloak.adminUsername is required (NFR-53)" .Values.adminUsername | quote }}
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+              value: {{ required "eim-keycloak.adminPassword is required (NFR-53)" .Values.adminPassword | quote }}
+            - name: KC_HEALTH_ENABLED
+              value: "true"
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet: { path: /realms/master, port: http }
+            initialDelaySeconds: 15
+            periodSeconds: 10

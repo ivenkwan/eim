@@ -1,0 +1,32 @@
+openapi: 3.1.0
+info:
+  title: EIM Plan Compiler
+  version: 0.1.0
+  summary: Compiles published plans into versioned DRL/DMN artifacts (Tarjan SCC, DMN checks)
+servers:
+  - url: http://localhost:8084
+paths:
+  /api/v1/hello:
+    get:
+      operationId: getHello
+      summary: Liveness hello from the service (read-only)
+      responses:
+        '200':
+          description: Service greeting
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HelloResponse'
+components:
+  schemas:
+    HelloResponse:
+      type: object
+      required: [service, status, message]
+      properties:
+        service:
+          type: string
+        status:
+          type: string
+          enum: [ok]
+        message:
+          type: string

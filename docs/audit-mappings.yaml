@@ -1,0 +1,44 @@
+# Audit-plane coverage manifest (AD-9 / NFR-64).
+# - Endpoint mappings live INLINE in openapi/*.yaml as x-audit on each
+#   mutating operation (enforced by check-audit-mappings.mjs).
+# - Every event topic below MUST appear in `events` with a stream + action.
+# Valid streams: action | event | config
+# Valid actions: the FR-601.2 audit action enum.
+version: 1
+events:
+  eim.sync.completed:
+    stream: event
+    action: CONNECTOR_RUN
+  eim.sync.failed:
+    stream: event
+    action: CONNECTOR_RUN
+  eim.calc.run.requested:
+    stream: event
+    action: CALCULATION_RUN
+  eim.calc.run.completed:
+    stream: event
+    action: CALCULATION_RUN
+  eim.ledger.committed:
+    stream: event
+    action: CALCULATION_RUN
+  eim.period.locked:
+    stream: event
+    action: PERIOD_LOCK
+  eim.period.reopened:
+    stream: event
+    action: PERIOD_REOPEN
+  eim.trueup.required:
+    stream: event
+    action: DATA_OVERRIDE
+  eim.trueup.posted:
+    stream: event
+    action: TRUEUP_POSTING
+  eim.dispute.created:
+    stream: event
+    action: DISPUTE_RESOLUTION
+  eim.dispute.updated:
+    stream: event
+    action: DISPUTE_RESOLUTION
+  eim.audit.appended:
+    stream: event
+    action: DATA_OVERRIDE

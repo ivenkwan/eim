@@ -1,0 +1,7 @@
+replicas: 1
+image:
+  repository: eim-process
+  tag: 0.1.0-dev
+resources:
+  requests: { cpu: 100m, memory: 192Mi }
+  limits: { cpu: "1", memory: 512Mi }

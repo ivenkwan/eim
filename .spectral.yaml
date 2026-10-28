@@ -1,0 +1,21 @@
+# Spectral ruleset for EIM OpenAPI specs (TG0-INF-4, TG0-TST-6).
+extends: ["spectral:oas"]
+rules:
+  # Stable operation IDs feed generated client types (AD-5).
+  operation-operationId: error
+  oas3-api-servers: off
+  info-license: off
+  # TG0-TST-6 / AD-9: every MUTATING operation must declare its audit mapping
+  # inline. (The authoritative method-aware check with self-test lives in
+  # scripts/check-audit-mappings.mjs; this rule makes the spec visibly loud.)
+  eim-mutations-declare-audit:
+    description: "Mutating operations must carry x-audit {action, stream} — nothing changes unaudited (AD-9, NFR-64)."
+    severity: error
+    given:
+      - "$.paths[*][post]"
+      - "$.paths[*][put]"
+      - "$.paths[*][patch]"
+      - "$.paths[*][delete]"
+    then:
+      function: truthy
+      field: "x-audit"

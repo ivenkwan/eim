@@ -1,0 +1,29 @@
+# Base Argo CD Application for one EIM environment (TG0-INF-8).
+# Overlays (apps/overlays/<env>) patch the name, namespace, values file and
+# sync policy. Promotion = merge to main; every sync is mirrored into the
+# audit plane by the GitOps watcher (FR-613.5).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: eim-env-template
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ivenkwan/eim.git
+    targetRevision: main
+    path: platform/helm/eim-platform
+    helm:
+      valueFiles:
+        - platform/envs/dev.values.yaml
+      # Secrets are NEVER in Git (NFR-53): injected by the secret store at sync time.
+      parameters:
+        - name: global.databasePassword
+          value: injected-by-secret-store
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: eim-dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

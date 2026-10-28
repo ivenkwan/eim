@@ -1,0 +1,14 @@
+# Embedded (dev) posture with lint-safe placeholder secrets.
+# CI/local verification only — real credentials are injected at deploy time
+# from the cluster secret store (NFR-53); placeholders below are never usable.
+global:
+  databasePassword: lint-placeholder
+eim-postgres:
+  auth:
+    password: lint-placeholder
+eim-minio:
+  rootUser: lint-user
+  rootPassword: lint-placeholder
+eim-keycloak:
+  adminUsername: lint-admin
+  adminPassword: lint-placeholder

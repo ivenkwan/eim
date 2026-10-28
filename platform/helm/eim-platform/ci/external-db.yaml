@@ -1,0 +1,15 @@
+# Substitution posture A (NFR-81): external managed PostgreSQL, embedded Kafka.
+global:
+  databaseHost: corporate-pg.example.internal
+  databasePort: "5432"
+  databaseName: eim
+  databaseUser: eim
+  databasePassword: lint-placeholder
+eim-postgres:
+  enabled: false
+eim-minio:
+  rootUser: lint-user
+  rootPassword: lint-placeholder
+eim-keycloak:
+  adminUsername: lint-admin
+  adminPassword: lint-placeholder

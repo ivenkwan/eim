@@ -51,7 +51,7 @@ flowchart LR
 
 | Gate | Name | Anchor | Target window | Status |
 |---|---|---|---|---|
-| TG-0 | Program setup | Pre-development | Week 0–2 | ☐ Not started |
+| TG-0 | Program setup | Pre-development | Week 0–2 | ◐ 17/18 items built & verified 2026-10-28 — TG0-INF-3 live boot blocked by host inotify exhaustion (evidence: [TG-0 build log](doc/build-log/TG-0.md)) |
 | TG-1 | Platform foundation & security baseline | PRD months 1–2 | Month 1 | ☐ Not started |
 | TG-2 | Data ingestion & credit/hierarchy | PRD months 1–2 | Months 1–2 | ☐ Not started |
 | TG-3 | Plan modeling & calculation engine | PRD months 3–4 | Months 3–4 | ☐ Not started |
@@ -65,39 +65,42 @@ flowchart LR
 
 ## TG-0 — Program setup *(pre-development, weeks 0–2)*
 
+> **Build status (2026-10-28)**: ✅ 17/18 items built and verified — 16/17 harness gates green (42/42 frontend tests, 9/9 backend tests, 2/2 golden fixtures, coverage 98.5% on the decimal core, Helm matrix ×4 postures, ADRs 1–9). ⛔ TG0-INF-3 live cluster boot blocked by a **host-level** `fs.inotify.max_user_instances` exhaustion on the shared dev machine (kubelet cAdvisor cannot init; remediation is a one-line sysctl for the host admin — full diagnosis and partial evidence in the [TG-0 build log](doc/build-log/TG-0.md)). Re-run `bash scripts/verify-tg0.sh` after the host fix to close the gate.
+
 **Objective**: repositories, toolchains, and guardrails such that every later merge is born compliant (types, tests, audit mapping, portability).
 
 ### 0.1 Repositories & toolchain (INF)
 
-- [ ] **TG0-INF-1** Create service repositories / monorepo layout: `eim-web` (pnpm + Turborepo: `web-app`, `ui-kit`, `api-client`, `schemas`, `shared-domain`), `eim-core-api`, `eim-connectors`, `eim-calc-engine`, `eim-process`, `eim-plan-compiler`, `helm/eim-platform` umbrella chart (arch §4, §10)
-- [ ] **TG0-INF-2** Backend service skeletons (Quarkus) with OTel SDK, health probes, Flyway wired (NFR-90, arch §13.2)
-- [ ] **TG0-INF-3** Local dev environment: kind/k3s cluster script booting PostgreSQL+AGE, Kafka, MinIO, APISIX, Keycloak via the same Helm charts (NFR-80 dev target)
-- [ ] **TG0-INF-4** OpenAPI 3.1 spec scaffolding per service + lint (spectral) in CI (NFR-101)
-- [ ] **TG0-INF-5** Frontend codegen pipeline: OpenAPI → `openapi-typescript`/hey-api client + Zod schema generation; freshness check fails CI on spec drift (AD-5, NFR-103)
+- [x] **TG0-INF-1** Create service repositories / monorepo layout: `eim-web` (pnpm + Turborepo: `web-app`, `ui-kit`, `api-client`, `schemas`, `shared-domain`), `eim-core-api`, `eim-connectors`, `eim-calc-engine`, `eim-process`, `eim-plan-compiler`, `helm/eim-platform` umbrella chart (arch §4, §10)
+- [x] **TG0-INF-2** Backend service skeletons (Quarkus) with OTel SDK, health probes, Flyway wired (NFR-90, arch §13.2)
+- [ ] **TG0-INF-3** ⛔ (blocked by host — see build log) Local dev environment: kind/k3s cluster script booting PostgreSQL+AGE, Kafka, MinIO, APISIX, Keycloak via the same Helm charts (NFR-80 dev target)
+- [x] **TG0-INF-4** OpenAPI 3.1 spec scaffolding per service + lint (spectral) in CI (NFR-101)
+- [x] **TG0-INF-5** Frontend codegen pipeline: OpenAPI → `openapi-typescript`/hey-api client + Zod schema generation; freshness check fails CI on spec drift (AD-5, NFR-103)
 
 ### 0.2 Guardrails in CI (TST)
 
-- [ ] **TG0-TST-1** TypeScript strictness gates: `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`; typed ESLint (strict-type-checked); `tsc --noEmit` gate (NFR-103)
-- [ ] **TG0-TST-2** Coverage floors in CI: ≥85% lines on calc/ledger/amortization modules, ≥70% elsewhere (NFR-102)
-- [ ] **TG0-TST-3** Float-prohibition static rule for calculation modules (NFR-01)
-- [ ] **TG0-TST-4** Golden-test harness skeleton (versioned fixtures + diff approval flow) (NFR-100)
-- [ ] **TG0-TST-5** Consumer-contract test harness between frontend/api-client and services (NFR-101)
-- [ ] **TG0-TST-6** **Audit-coverage CI suite**: framework requiring every new endpoint & event type to declare its audit mapping, else build fails (NFR-64, AD-9)
+- [x] **TG0-TST-1** TypeScript strictness gates: `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`; typed ESLint (strict-type-checked); `tsc --noEmit` gate (NFR-103)
+- [x] **TG0-TST-2** Coverage floors in CI: ≥85% lines on calc/ledger/amortization modules, ≥70% elsewhere (NFR-102)
+- [x] **TG0-TST-3** Float-prohibition static rule for calculation modules (NFR-01)
+- [x] **TG0-TST-4** Golden-test harness skeleton (versioned fixtures + diff approval flow) (NFR-100)
+- [x] **TG0-TST-5** Consumer-contract test harness between frontend/api-client and services (NFR-101)
+- [x] **TG0-TST-6** **Audit-coverage CI suite**: framework requiring every new endpoint & event type to declare its audit mapping, else build fails (NFR-64, AD-9)
 
 ### 0.3 Portability & delivery guardrails (INF)
 
-- [ ] **TG0-INF-6** Helm chart lint + `helm template` substitution-matrix job (CloudNativePG ↔ external PG via values only) (NFR-81)
-- [ ] **TG0-INF-7** Image pipeline: distro-style minimal JDK/Node images, SBOM (syft), CVE scan gate blocking criticals (NFR-57)
-- [ ] **TG0-INF-8** GitOps skeleton: Argo CD app-of-apps, dev/staging/prod overlays, digest-pinned promotions (arch §13.2)
+- [x] **TG0-INF-6** Helm chart lint + `helm template` substitution-matrix job (CloudNativePG ↔ external PG via values only) (NFR-81)
+- [x] **TG0-INF-7** Image pipeline: distro-style minimal JDK/Node images, SBOM (syft), CVE scan gate blocking criticals (NFR-57)
+- [x] **TG0-INF-8** GitOps skeleton: Argo CD app-of-apps, dev/staging/prod overlays, digest-pinned promotions (arch §13.2)
 
 ### 0.4 Ways of working (OPS)
 
-- [ ] **TG0-OPS-1** ADR process seeded; ratify AD-1…AD-9 from the architecture plan (NFR-105, arch §2)
-- [ ] **TG0-OPS-2** Definition of Done includes: tests, contract updated, audit mapping declared, runbook entry for any new alert (NFR-64/93)
-- [ ] **TG0-OPS-3** Threat model workshop + security requirements checklist (OWASP API Top 10, BOLA focus) (NFR-54)
-- [ ] **TG0-OPS-4** Onboarding docs: service READMEs, local-run instructions, first-contribution path <2 days (NFR-105)
+- [x] **TG0-OPS-1** ADR process seeded; ratify AD-1…AD-9 from the architecture plan (NFR-105, arch §2)
+- [x] **TG0-OPS-2** Definition of Done includes: tests, contract updated, audit mapping declared, runbook entry for any new alert (NFR-64/93)
+- [x] **TG0-OPS-3** Threat model workshop + security requirements checklist (OWASP API Top 10, BOLA focus) (NFR-54)
+- [x] **TG0-OPS-4** Onboarding docs: service READMEs, local-run instructions, first-contribution path <2 days (NFR-105)
 
 **Exit criteria TG-0**: CI pipeline enforces types/tests/coverage/audit-mapping/chart-lint on a hello-world change; `k3s up` script boots the full platform from one umbrella chart; ADRs 1–9 merged.
+*Status (2026-10-28): CI-equivalent gates ✅ green on the hello-world path (`scripts/verify-tg0.sh` + `ci.yml`); ADRs 1–9 ✅ merged; cluster boot ⛔ pending host inotify fix — see [build log](doc/build-log/TG-0.md) §2–3.*
 
 ---
 

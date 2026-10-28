@@ -1,0 +1,51 @@
+apiVersion: v2
+name: eim-platform
+description: EIM platform umbrella chart (cloud-agnostic, Kubernetes-only — arch §13)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+dependencies:
+  - name: eim-web
+    version: 0.1.0
+    repository: file://charts/eim-web
+    condition: eim-web.enabled
+  - name: eim-core-api
+    version: 0.1.0
+    repository: file://charts/eim-core-api
+    condition: eim-core-api.enabled
+  - name: eim-connectors
+    version: 0.1.0
+    repository: file://charts/eim-connectors
+    condition: eim-connectors.enabled
+  - name: eim-calc-engine
+    version: 0.1.0
+    repository: file://charts/eim-calc-engine
+    condition: eim-calc-engine.enabled
+  - name: eim-process
+    version: 0.1.0
+    repository: file://charts/eim-process
+    condition: eim-process.enabled
+  - name: eim-plan-compiler
+    version: 0.1.0
+    repository: file://charts/eim-plan-compiler
+    condition: eim-plan-compiler.enabled
+  - name: eim-postgres
+    version: 0.1.0
+    repository: file://charts/eim-postgres
+    condition: eim-postgres.enabled
+  - name: eim-kafka
+    version: 0.1.0
+    repository: file://charts/eim-kafka
+    condition: eim-kafka.enabled
+  - name: eim-minio
+    version: 0.1.0
+    repository: file://charts/eim-minio
+    condition: eim-minio.enabled
+  - name: eim-apisix
+    version: 0.1.0
+    repository: file://charts/eim-apisix
+    condition: eim-apisix.enabled
+  - name: eim-keycloak
+    version: 0.1.0
+    repository: file://charts/eim-keycloak
+    condition: eim-keycloak.enabled

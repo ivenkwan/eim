@@ -11,6 +11,7 @@
 | [Architecture Plan](doc/03-architecture-plan.md) | Target architecture on the mandated stack: cloud-agnostic Kubernetes, PostgreSQL + AGE, APISIX gateway, strict TypeScript frontend, Drools (DRL + DMN) rules, Kogito process automation |
 | [Manual Intervention & Approval Playbook](doc/04-manual-intervention-playbook.md) | Every human intervention/approval point (MI-xx) and all manual adjustment procedures (MA-01…14) with reason codes, SLAs, and audit expectations |
 | [Build TODO & Tollgates](todo.md) | All build activities grouped into tollgates TG-0…TG-8 with workstreams, exit criteria, and FR/NFR traceability |
+| [TG-0 Build Log](doc/build-log/TG-0.md) | Verification evidence for tollgate TG-0 (program setup): gate results, test totals, and the live-cluster-boot blocker diagnosis |
 
 ## Technology mandates
 

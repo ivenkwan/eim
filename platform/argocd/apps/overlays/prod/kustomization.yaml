@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+patches:
+  - target:
+      kind: Application
+      name: eim-env-template
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: eim-prod
+      - op: replace
+        path: /spec/source/helm/valueFiles/0
+        value: platform/envs/prod.values.yaml
+      - op: replace
+        path: /spec/destination/namespace
+        value: eim-prod
+      # Production: manual sync gate (remove automated), selfHeal against drift.
+      # Emergency hotfixes follow the MI-20 break-glass playbook.
+      - op: remove
+        path: /spec/syncPolicy/automated/prune
+      - op: remove
+        path: /spec/syncPolicy/automated/selfHeal
+      - op: remove
+        path: /spec/syncPolicy/automated
+      - op: add
+        path: /spec/syncPolicy/syncOptions
+        value: ["CreateNamespace=true"]
+      - op: add
+        path: /spec/syncPolicy/selfHeal
+        value: true

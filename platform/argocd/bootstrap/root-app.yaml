@@ -1,0 +1,21 @@
+# Argo CD app-of-apps (TG0-INF-8). The root application watches apps/ as a
+# directory; each env Application deploys the same umbrella chart with
+# environment values — GitOps promotion = merge, never click-ops.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: eim-root
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ivenkwan/eim.git
+    targetRevision: main
+    path: platform/argocd/apps/overlays
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

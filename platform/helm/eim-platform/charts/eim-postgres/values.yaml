@@ -1,0 +1,6 @@
+image: apache/age:PG16_latest
+auth:
+  database: eim
+  username: eim
+persistence:
+  size: 5Gi

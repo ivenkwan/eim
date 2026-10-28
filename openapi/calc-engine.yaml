@@ -1,0 +1,70 @@
+openapi: 3.1.0
+info:
+  title: EIM Calculation Engine
+  version: 0.1.0
+  summary: Deterministic calculation engine (wavefronts, marginal tiers, shadow replay)
+servers:
+  - url: http://localhost:8082
+paths:
+  /api/v1/hello:
+    get:
+      operationId: getHello
+      summary: Liveness hello from the service (read-only)
+      responses:
+        '200':
+          description: Service greeting
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HelloResponse'
+  /api/v1/calc/runs:
+    post:
+      operationId: requestCalculationRun
+      summary: Request a calculation run for a payout period (orchestrated via process engine)
+      x-audit:
+        action: CALCULATION_RUN
+        stream: action
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalcRunRequest'
+      responses:
+        '202':
+          description: Run accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalcRunAccepted'
+components:
+  schemas:
+    HelloResponse:
+      type: object
+      required: [service, status, message]
+      properties:
+        service:
+          type: string
+        status:
+          type: string
+          enum: [ok]
+        message:
+          type: string
+    CalcRunRequest:
+      type: object
+      required: [tenantId, payoutPeriodId, planVersionHash]
+      properties:
+        tenantId:
+          type: string
+        payoutPeriodId:
+          type: string
+        planVersionHash:
+          type: string
+    CalcRunAccepted:
+      type: object
+      required: [accepted, runId]
+      properties:
+        accepted:
+          type: boolean
+        runId:
+          type: string

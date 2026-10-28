@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Chart.Name }}-config
+  labels: { app: {{ .Chart.Name }} }
+data:
+  config.yaml: |
+    # APISIX standalone (decoupled from etcd): routes are config-as-code,
+    # mirrored into the audit plane by the GitOps sync watcher (FR-613.5).
+    deployment:
+      role: traditional
+      role_traditional:
+        config_provider: yaml
+    routes:
+      - uri: /api/v1/*
+        upstream:
+          type: roundrobin
+          nodes:
+            "eim-core-api:8080": 1

@@ -1,0 +1,28 @@
+# Node / pnpm
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.turbo/
+
+# JVM
+target/
+*.class
+hs_err_pid*
+
+# Local env & secrets — never commit credentials
+.env
+.env.*
+.dev-secrets.env
+
+# Helm / k8s local artifacts
+*.tgz
+Chart.lock
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Logs
+*.log

@@ -1,0 +1,22 @@
+{
+  "name": "FR-502.1 canonical marginal tier slicing",
+  "input": {
+    "attainmentBefore": "90000",
+    "attainmentAfter": "160000",
+    "tiers": [
+      { "name": "Tier 1 (0-100%)", "floor": "0", "ceiling": "100000", "rate": "0.100000" },
+      { "name": "Tier 2 (100-150%)", "floor": "100000", "ceiling": "150000", "rate": "0.150000" },
+      { "name": "Tier 3 (>150%)", "floor": "150000", "ceiling": null, "rate": "0.200000" }
+    ],
+    "rounding": "HALF_EVEN",
+    "finalScale": 2
+  },
+  "expected": {
+    "slices": [
+      { "tierName": "Tier 1 (0-100%)", "sliceAmount": "10000", "rateApplied": "0.100000", "slicePayout": "1000.000000" },
+      { "tierName": "Tier 2 (100-150%)", "sliceAmount": "50000", "rateApplied": "0.150000", "slicePayout": "7500.000000" },
+      { "tierName": "Tier 3 (>150%)", "sliceAmount": "10000", "rateApplied": "0.200000", "slicePayout": "2000.000000" }
+    ],
+    "total": "10500.00"
+  }
+}

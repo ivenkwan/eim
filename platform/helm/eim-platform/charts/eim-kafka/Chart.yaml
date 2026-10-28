@@ -1,0 +1,6 @@
+apiVersion: v2
+name: eim-kafka
+description: Kafka (KRaft single-node dev; Strimzi posture via substitution)
+type: application
+version: 0.1.0
+appVersion: "3.9.0"

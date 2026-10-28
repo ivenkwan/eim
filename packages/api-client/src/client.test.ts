@@ -1,0 +1,48 @@
+// TG0-TST-5: transport contract tests — the typed fetch wrapper validates
+// every payload through a spec-derived validator before it reaches app state.
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { fetchJson, type Validator } from './index.ts';
+import { HelloResponseSchema } from '@eim/schemas';
+
+function mockFetch(status: number, body: unknown) {
+  const json = vi.fn(() => Promise.resolve(body));
+  const fetchMock = vi.fn((_url: string, _init?: RequestInit) =>
+    Promise.resolve({ ok: status >= 200 && status < 300, status, json }),
+  );
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe('fetchJson', () => {
+  const validateHello: Validator<{ service: string; status: 'ok'; message: string }> = (v) =>
+    HelloResponseSchema.parse(v);
+
+  it('returns validated data for a conforming response', async () => {
+    const fetchMock = mockFetch(200, { service: 'eim-core-api', status: 'ok', message: 'hello' });
+    const result = await fetchJson('http://eim-core-api/api/v1/hello', validateHello);
+    expect(result.message).toBe('hello');
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('http://eim-core-api/api/v1/hello');
+  });
+
+  it('sends accept: application/json', async () => {
+    const fetchMock = mockFetch(200, { service: 's', status: 'ok', message: 'm' });
+    await fetchJson('u', validateHello);
+    const init = fetchMock.mock.calls[0]?.[1];
+    const headers = init?.headers as Record<string, string> | undefined;
+    expect(headers?.accept).toBe('application/json');
+  });
+
+  it('throws on HTTP error status', async () => {
+    mockFetch(503, {});
+    await expect(fetchJson('u', validateHello)).rejects.toThrow('HTTP 503');
+  });
+
+  it('throws on non-conforming payloads (boundary validation, AD-5)', async () => {
+    mockFetch(200, { service: 's', status: 'WRONG', message: 'm' });
+    await expect(fetchJson('u', validateHello)).rejects.toThrow();
+  });
+});

@@ -1,0 +1,24 @@
+# Staging: two replicas per app, embedded data plane.
+global:
+  databasePassword: REPLACE_VIA_SECRET_STORE
+eim-web:
+  replicas: 2
+eim-core-api:
+  replicas: 2
+eim-connectors:
+  replicas: 2
+eim-calc-engine:
+  replicas: 2
+eim-process:
+  replicas: 2
+eim-plan-compiler:
+  replicas: 2
+eim-postgres:
+  auth:
+    password: REPLACE_VIA_SECRET_STORE
+eim-minio:
+  rootUser: eim-staging
+  rootPassword: REPLACE_VIA_SECRET_STORE
+eim-keycloak:
+  adminUsername: admin
+  adminPassword: REPLACE_VIA_SECRET_STORE

@@ -1,0 +1,15 @@
+# Substitution posture C (NFR-81): fully external data plane — apps + gateway
+# + identity only, exactly the portability promise of NFR-80/81.
+global:
+  databaseHost: corporate-pg.example.internal
+  databasePassword: lint-placeholder
+  kafkaBootstrapServers: corporate-kafka.example.internal:9092
+eim-postgres:
+  enabled: false
+eim-kafka:
+  enabled: false
+eim-minio:
+  enabled: false
+eim-keycloak:
+  adminUsername: lint-admin
+  adminPassword: lint-placeholder

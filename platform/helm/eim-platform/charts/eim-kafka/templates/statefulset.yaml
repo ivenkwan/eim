@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Chart.Name }}
+  labels: { app: {{ .Chart.Name }} }
+spec:
+  serviceName: {{ .Chart.Name }}
+  replicas: 1
+  selector:
+    matchLabels: { app: {{ .Chart.Name }} }
+  template:
+    metadata:
+      labels: { app: {{ .Chart.Name }} }
+    spec:
+      containers:
+        - name: kafka
+          image: {{ .Values.image }}
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              if [ ! -f /var/lib/kafka/data/meta.properties ]; then
+                /opt/kafka/bin/kafka-storage.sh format -t {{ .Values.clusterId }} -c /etc/kafka/server.properties --standalone
+              fi
+              exec /opt/kafka/bin/kafka-server-start.sh /etc/kafka/server.properties
+          ports:
+            - name: plaintext
+              containerPort: 9092
+            - name: controller
+              containerPort: 9093
+          readinessProbe:
+            tcpSocket: { port: plaintext }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts:
+            - name: config
+              mountPath: /etc/kafka
+            - name: data
+              mountPath: /var/lib/kafka
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Chart.Name }}-config
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources: { requests: { storage: {{ .Values.persistence.size }} } }
