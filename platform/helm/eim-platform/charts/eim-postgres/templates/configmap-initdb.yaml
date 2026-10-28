@@ -6,7 +6,11 @@ metadata:
 data:
   01-age.sql: |
     -- TG-0: enable AGE and create the tenant graph (AD-3 / arch §9.2).
+    -- NOTE: the age.age_graph_path GUC was removed in AGE 1.6 — do not SET it.
     CREATE EXTENSION IF NOT EXISTS age;
     LOAD 'age';
-    SET age.age_graph_path = 'eim_graph';
-    SELECT ag_catalog.create_graph('eim_graph');
+    DO $$
+    BEGIN
+      PERFORM ag_catalog.create_graph('eim_graph');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;

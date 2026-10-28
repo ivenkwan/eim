@@ -7,7 +7,6 @@ helm dependency build platform/helm/eim-platform
 helm upgrade --install eim platform/helm/eim-platform \
   --namespace eim --create-namespace \
   --set eim-postgres.auth.password=... \
-  --set eim-minio.rootUser=... --set eim-minio.rootPassword=... \
   --set eim-keycloak.adminUsername=... --set eim-keycloak.adminPassword=...
 ```
 

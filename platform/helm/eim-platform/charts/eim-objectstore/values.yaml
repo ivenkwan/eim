@@ -1,0 +1,3 @@
+image: chrislusf/seaweedfs:3.80
+persistence:
+  size: 10Gi

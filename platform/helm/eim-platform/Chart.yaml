@@ -37,10 +37,10 @@ dependencies:
     version: 0.1.0
     repository: file://charts/eim-kafka
     condition: eim-kafka.enabled
-  - name: eim-minio
+  - name: eim-objectstore
     version: 0.1.0
-    repository: file://charts/eim-minio
-    condition: eim-minio.enabled
+    repository: file://charts/eim-objectstore
+    condition: eim-objectstore.enabled
   - name: eim-apisix
     version: 0.1.0
     repository: file://charts/eim-apisix

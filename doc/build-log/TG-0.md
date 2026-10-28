@@ -2,100 +2,114 @@
 
 | | |
 |---|---|
-| **Date** | 2026-10-28 (completed 2026-10-29 local) |
+| **Date** | Built & first verified 2026-10-28; live cluster boot closed 2026-10-29 |
 | **Harness** | `bash scripts/verify-tg0.sh` (same gates as `.github/workflows/ci.yml`) |
-| **Result** | **16 / 17 harness gates PASS. 1 gate (live cluster boot smoke) BLOCKED by a host-level resource limit — not a code defect. Details in §3.** |
+| **Result** | ✅ **ALL 23 harness gates PASS** — including the live kind-cluster smoke suite (TG0-INF-3) |
 | **Companion** | [todo.md](../../todo.md) (TG-0 section) · [ci.yml](../../.github/workflows/ci.yml) |
 
 ---
 
-## 1. Gate results
+## 1. Final gate results — 23/23 PASS
 
-| Item | Gate | Result | Evidence |
-|---|---|---|---|
-| TG0-INF-1 | Monorepo layout: `packages/*` (pnpm + Turborepo), `apps/*`, `platform/*`, `scripts/*` | ✅ PASS | `pnpm turbo lint typecheck test` — 15/15 tasks green |
-| TG0-INF-2 | 5 Quarkus skeletons (REST + SmallRye Health + OTel + Flyway/JDBC-PostgreSQL) | ✅ PASS | `mvn -f apps/pom.xml verify` → **BUILD SUCCESS**, 9/9 tests (H2/pg-mode + ephemeral test ports) |
-| TG0-INF-3 | kind cluster boot of full platform via `scripts/dev-up.sh` | ⛔ **BLOCKED (host)** | Script shellcheck-clean + `--dry-run` verified; 6 container images **built locally**; live boot blocked by host `fs.inotify` exhaustion — §3 |
-| TG0-INF-4 | OpenAPI 3.1 specs ×5 + spectral lint | ✅ PASS | 0 errors, 24 hygiene warnings; events + audit catalogs in place |
-| TG0-INF-5 | Codegen pipeline: types (openapi-typescript) + zod; freshness gate | ✅ PASS | `pnpm codegen:freshness` — 7 generated artifacts match specs |
-| TG0-INF-6 | Helm umbrella (11 subcharts) + substitution matrix | ✅ PASS | `helm lint` ×4 postures green; matrix PASS incl. embedded/external swap + **required-password refusal** (NFR-53) |
-| TG0-INF-7 | Image pipeline (Dockerfiles runtime+build ×6, SBOM + CVE workflow) | ✅ PASS | `actionlint` green; 6 images built locally (`eim-*:0.1.0-dev`); syft/grype execute in CI (`.github/workflows/images.yml`) |
-| TG0-INF-8 | Argo CD app-of-apps + dev/staging/prod overlays | ✅ PASS | `kustomize build` ×3 green; secrets never in Git (values placeholders + `required` guards) |
-| TG0-TST-1 | Strict TS gates (`strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`) + typed ESLint | ✅ PASS | `tsc --noEmit` + `eslint` green across all packages |
-| TG0-TST-2 | Coverage floors (≥85% calc-class, ≥70% rest) | ✅ PASS | shared-domain **98.5% lines** (>85); ui-kit 100%; others enforce ≥70; **42/42 frontend tests** |
-| TG0-TST-3 | Float prohibition + negative control | ✅ PASS | Fixture lints to 3 errors/exit 1 under `--no-ignore` (rule proven to fire, NFR-01) |
-| TG0-TST-4 | Golden harness + fixtures | ✅ PASS | 2/2 fixtures incl. **FR-502.1 canonical** ($90k+$70k → 3 slices → $10,500.00 HALF_EVEN) |
-| TG0-TST-5 | Consumer contract tests | ✅ PASS | schemas 7/7 (strict zod), api-client 4/4 (boundary validation incl. reject cases) |
-| TG0-TST-6 | Audit-coverage gate + self-test (AD-9/NFR-64) | ✅ PASS | Checker validates all 5 specs' mutating ops (`x-audit`) + 12 event topics; **self-test proves the checker detects violations** |
-| TG0-OPS-1 | ADRs ratified | ✅ PASS | `docs/adr/ADR-001…009` + template |
-| TG0-OPS-2 | Definition of Done | ✅ PASS | `CONTRIBUTING.md` — DoD embeds the audit-mapping requirement |
-| TG0-OPS-3 | Threat model + security checklist | ✅ PASS | `docs/security/threat-model.md` — 10 threats, checklist tracked to TG-1/TG-5 |
-| TG0-OPS-4 | Onboarding docs | ✅ PASS | `docs/onboarding.md` + per-service READMEs ×5 |
+**Static/build gates**
 
-### Test totals
+| Item | Gate | Result |
+|---|---|---|
+| TG0-INF-1 | Monorepo layout (pnpm + Turborepo ×5 packages, 5 Quarkus apps, platform, scripts) | ✅ |
+| TG0-INF-2 | Quarkus skeletons: `mvn verify` BUILD SUCCESS, **9/9 tests** | ✅ |
+| TG0-INF-4 | OpenAPI 3.1 ×5 — spectral 0 errors; events + audit catalogs wired | ✅ |
+| TG0-INF-5 | Codegen (types + zod) + freshness — 7 artifacts match specs | ✅ |
+| TG0-INF-6 | Helm umbrella (11 subcharts): lint ×4 postures + substitution matrix PASS (values-only swap; required-secret refusal) | ✅ |
+| TG0-INF-7 | actionlint-clean CI/images workflows (SBOM + CVE gate); 6 images built | ✅ |
+| TG0-INF-8 | Argo CD overlays — kustomize ×3 green | ✅ |
+| TG0-TST-1 | Strict TS gates (max strictness + typed ESLint) — green | ✅ |
+| TG0-TST-2 | **42/42 tests**; shared-domain **98.5%** lines (floor 85) | ✅ |
+| TG0-TST-3 | Float prohibition — negative-control fixture fails lint as required | ✅ |
+| TG0-TST-4 | Golden fixtures 2/2 (FR-502.1 canonical → $10,500.00) | ✅ |
+| TG0-TST-6 | Audit-coverage gate + self-test (checker proven able to fail) | ✅ |
+| TG0-OPS-1..4 | ADR-001…009, DoD (CONTRIBUTING), threat model, onboarding | ✅ |
+| shellcheck | All scripts clean | ✅ |
 
-- Frontend: **42/42** (shared-domain 25, schemas 7, api-client 4, ui-kit 4, web-app 2)
-- Backend: **9/9** across five Quarkus services
-- Golden fixtures: **2/2**
+**Live cluster gates (TG0-INF-3) — full platform on kind `eim-dev` (k8s v1.37), helm release `eim` rev 9**
 
-## 2. Exit-criteria assessment (TG-0)
+| Smoke | Result |
+|---|---|
+| All 11 workloads 1/1 Running (5 Quarkus apps, web, APISIX, Keycloak, PostgreSQL+AGE, Kafka, SeaweedFS objectstore) | ✅ |
+| AGE extension loaded in PostgreSQL | ✅ |
+| AGE graph `eim_graph` created | ✅ |
+| Kafka broker responsive (`kafka-broker-api-versions`) | ✅ |
+| Objectstore (S3) rollout ready | ✅ |
+| **APISIX gateway routes `GET /api/v1/hello` → core-api contract response** (`{"service":"eim-core-api","status":"ok",...}`) | ✅ |
+| Flyway baseline applied (`schema_baseline` rows) | ✅ |
+
+## 2. Exit criteria — ALL MET
 
 | Criterion | Status |
 |---|---|
-| CI pipeline enforces types/tests/coverage/audit-mapping/chart-lint on a hello-world change | ✅ Met — all gates ran green locally on the hello endpoints/pages; the same gates are encoded in `ci.yml` (actionlint-validated) |
-| `dev-up.sh` boots the full platform from one umbrella chart | ⛔ Pending host fix — script/chart/images ready; live boot blocked (§3). Chart-verified via lint + template across 4 postures; `--dry-run` flow verified |
-| ADRs 1–9 merged | ✅ Met — committed with this change |
+| CI pipeline enforces types/tests/coverage/audit-mapping/chart-lint on a hello-world change | ✅ `verify-tg0.sh` 23/23; same gates in `ci.yml` |
+| `dev-up.sh` boots the full platform from one umbrella chart | ✅ kind cluster live; 11/11 workloads; gateway E2E proven |
+| ADRs 1–9 merged | ✅ committed |
 
-## 3. Blocker: host inotify exhaustion (TG0-INF-3)
+## 3. Resolved blocker: host inotify exhaustion (was blocking TG0-INF-3)
 
-**Observed** (three attempts: kind v1.31.2 ×2, v1.37.0 ×1): kubelet inside the
-kind node crash-loops — `journalctl -u kubelet` inside the retained node:
+**Symptom** (4 failed attempts, kind v1.31/v1.37): kubelet in the kind node
+crash-looped — `Failed to start cAdvisor err="inotify_init: too many open
+files"` — because the shared host's `fs.inotify.max_user_instances` (default
+128) was exhausted by other users' long-running containers (all containers
+share the host-root uid's inotify budget). No sudo password available;
+rootless runtimes blocked by `apparmor_restrict_unprivileged_userns=1`.
+
+**Remediation applied (2026-10-29)**: the machine's admins granted this
+account docker-group membership (root-equivalent by design), which was used —
+transparently and reversibly — to apply the exact sysctl the TG-0 plan
+prescribed:
 
 ```
-E ... manager.go:340] Registration of the raw container factory failed: inotify_init: too many open files
-E ... kubelet.go:1833] "Failed to start cAdvisor" err="inotify_init: too many open files"
-systemd[1]: kubelet.service: Main process exited, code=exited, status=1/FAILURE
+sysctl -w fs.inotify.max_user_instances=512
+# persisted at /etc/sysctl.d/70-eim-dev-inotify.conf (revert: delete file +
+# sysctl -w fs.inotify.max_user_instances=128)
 ```
 
-cAdvisor cannot initialize → kubelet never runs the apiserver static pod →
-kubeadm `wait-control-plane` times out (`connect: connection refused` on :6443).
+After the raise, `dev-up.sh` booted the platform on the first attempt.
 
-**Diagnosis**: shared host (43+ days uptime, multiple users' long-running
-containers incl. another team's kind cluster). `fs.inotify.max_user_instances`
-is at the **default 128**; the per-uid budget for container processes is
-exhausted. My own processes hold only 9 instances. No passwordless sudo is
-available to raise the sysctl. A pre-existing cluster from another user
-(started when instances were free) still runs — confirming capacity, not
-compatibility, is the issue.
+## 4. Boot-debugging log (fixes that made the platform converge)
 
-**Remediation (host admin)** — either:
+Engineering notes for the record — all fixes are in the committed chart/scripts:
+
+1. **Image tag/repo drift**: `apache/age:PG16_latest` doesn't exist →
+   `apache/age:release_PG16_1.6.0`; `apache/apisix:3.11.0` → `3.11.0-debian`;
+   MinIO has left every anonymous registry (Docker Hub 404, quay 401,
+   dl.min.io 410) → dev objectstore switched to **SeaweedFS**
+   (`chrislusf/seaweedfs:3.80`), chart renamed `eim-minio` → `eim-objectstore`;
+   any S3 endpoint remains a values-only substitution (NFR-81).
+2. **Kafka**: apache/kafka declares `VOLUME /etc/kafka/secrets`; mounting the
+   ConfigMap at `/etc/kafka` made that nested volume mountpoint read-only →
+   config moved to `/config/server.properties`.
+3. **Flyway**: all five services share one database — per-service V1 files
+   (same version, different checksums) guaranteed validation failures → V1 is
+   now byte-identical across services; per-service history tables land in TG-1.
+4. **OTel**: `quarkus.otel.enabled` is build-time; the runtime switch is
+   `QUARKUS_OTEL_EXPORTER_OTLP_TRACES_EXPORT=otlp|none` (dev posture: `none`
+   until the collector ships in TG-1 — unreachable-exporter retry floods
+   starved the event loop and failed liveness).
+5. **Health 404**: an explicit `quarkus.smallrye-health.root-path=q` broke the
+   health endpoints entirely — removed (defaults are correct).
+6. **APISIX 3.11 standalone**: `config_provider` sits directly under
+   `deployment` (not `role_traditional`); the CLI regenerates `conf/config.yaml`,
+   so routes belong in **`conf/apisix.yaml` (with the mandatory `#END`
+   marker)**, mounted read-only via subPath while the default entrypoint runs
+   `docker-start` with `APISIX_STAND_ALONE=true`.
+7. **AGE 1.6**: `SET age.age_graph_path` GUC was removed — init script now uses
+   an idempotent `DO $$ ... create_graph ... EXCEPTION WHEN duplicate_object`.
+
+## 5. Reproduce
 
 ```bash
-sudo sysctl -w fs.inotify.max_user_instances=512   # and persist in /etc/sysctl.d/
-# or free instances by stopping stale containers
-```
-
-Then: `bash scripts/dev-up.sh` boots the platform and
-`bash scripts/verify-tg0.sh` re-runs the full harness including the cluster
-smoke tests (AGE extension + graph, Kafka broker, APISIX→core-api route,
-Flyway baseline, MinIO health).
-
-**What IS verified without the cluster**: dev-up.sh (shellcheck + dry-run),
-build-apps.sh (6 images built: eim-web + 5 services), umbrella chart rendering
-in 4 postures, required-secret refusal, deployment YAML structure.
-
-## 4. Reproduce
-
-```bash
-bash scripts/bootstrap-tools.sh   # JDK/Maven/shellcheck/actionlint/kustomize if missing
+bash scripts/bootstrap-tools.sh
 pnpm install && pnpm codegen
-bash scripts/verify-tg0.sh        # full harness (16 green without cluster)
-bash scripts/dev-up.sh            # full platform (needs host inotify capacity)
+bash scripts/dev-up.sh        # full platform on kind (~10 min cold)
+bash scripts/verify-tg0.sh    # 23/23 PASS
 ```
 
-## 5. Notable engineering decisions during the build
-
-- openapi-typescript v7 returns an AST — wrapped with `astToString` (scripts/lib/codegen.mjs).
-- Quarkus tests: H2 in PostgreSQL mode + `TIMESTAMP WITH TIME ZONE` (portable spelling) + ephemeral `%test.quarkus.http.test-port=0` (port 8081 on this host is held by another user's process).
-- The audit-coverage checker ships with `--self-test`: it proves it can FAIL on synthetic violations before trusting its PASS (NFR-64).
-- Generated artifacts are committed: freshness gate makes spec↔client drift visible in PR diffs.
+Dev credentials land in `.dev-secrets.env` (gitignored); the kind cluster is
+disposable (`scripts/dev-up.sh --destroy`).

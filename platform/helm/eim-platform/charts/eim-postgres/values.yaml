@@ -1,4 +1,4 @@
-image: apache/age:PG16_latest
+image: apache/age:release_PG16_1.6.0
 auth:
   database: eim
   username: eim

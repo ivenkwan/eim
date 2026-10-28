@@ -43,14 +43,10 @@ if [ "$DRY_RUN" -eq 1 ]; then
   echo "[dev-up] (dry-run) would generate credentials into $SECRETS_FILE"
 else
   PG_PASS="$(openssl rand -hex 16)"
-  MINIO_USER="eim-dev"
-  MINIO_PASS="$(openssl rand -hex 16)"
   KC_USER="admin"
   KC_PASS="$(openssl rand -hex 16)"
   {
     echo "EIM_DEV_POSTGRES_PASSWORD=$PG_PASS"
-    echo "EIM_DEV_MINIO_ROOT_USER=$MINIO_USER"
-    echo "EIM_DEV_MINIO_ROOT_PASSWORD=$MINIO_PASS"
     echo "EIM_DEV_KEYCLOAK_ADMIN_USERNAME=$KC_USER"
     echo "EIM_DEV_KEYCLOAK_ADMIN_PASSWORD=$KC_PASS"
   } > "$SECRETS_FILE"
@@ -76,7 +72,7 @@ run kubectl config use-context "kind-$CLUSTER"
 # ---------------------------------------------------------------- load images
 if [ "$DRY_RUN" -eq 0 ]; then
   for image in eim-web eim-core-api eim-connectors eim-calc-engine eim-process eim-plan-compiler; do
-    if ! docker exec "eim-dev-control-plane" ctr -n k8s.io images ls "name:$image:0.1.0-dev" -q | grep -q .; then
+    if ! docker exec "eim-dev-control-plane" ctr -n k8s.io images ls "name==$image:0.1.0-dev" -q | grep -q .; then
       run kind load docker-image "$image:0.1.0-dev" --name "$CLUSTER"
     fi
   done
@@ -89,8 +85,6 @@ if [ "$DRY_RUN" -eq 0 ]; then
     --namespace "$NAMESPACE" --create-namespace \
     --set "global.databasePassword=$PG_PASS" \
     --set "eim-postgres.auth.password=$PG_PASS" \
-    --set "eim-minio.rootUser=$MINIO_USER" \
-    --set "eim-minio.rootPassword=$MINIO_PASS" \
     --set "eim-keycloak.adminUsername=$KC_USER" \
     --set "eim-keycloak.adminPassword=$KC_PASS" \
     --wait --timeout 10m
@@ -115,9 +109,9 @@ if [ "$DRY_RUN" -eq 0 ]; then
 
   smoke "postgres+AGE extension" kubectl -n "$NAMESPACE" exec eim-postgres-0 -- psql -U eim -d eim -tAc "SELECT extname FROM pg_extension WHERE extname='age'"
   smoke "AGE graph eim_graph exists" kubectl -n "$NAMESPACE" exec eim-postgres-0 -- psql -U eim -d eim -tAc "SELECT name FROM ag_catalog.ag_graph WHERE name='eim_graph'"
-  smoke "kafka topic api" kubectl -n "$NAMESPACE" exec eim-kafka-0 -- /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092
-  smoke "minio health" kubectl -n "$NAMESPACE" exec deploy/eim-minio -- curl -sf http://localhost:9000/minio/health/live
-  smoke "core-api flyway baseline" kubectl -n "$NAMESPACE" exec deploy/eim-core-api -- wget -qO- http://localhost:8080/q/health/ready
+  smoke "kafka broker responsive" kubectl -n "$NAMESPACE" exec eim-kafka-0 -- /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092
+  smoke "objectstore (S3) serving" kubectl -n "$NAMESPACE" rollout status deploy/eim-objectstore --timeout=120s
+  smoke "core-api health/ready" kubectl -n "$NAMESPACE" exec deploy/eim-core-api -- wget -qO- http://localhost:8080/q/health/ready
 fi
 
 echo "[dev-up] done. Try: kubectl -n $NAMESPACE port-forward svc/eim-apisix 9080:9080 && curl localhost:9080/api/v1/hello"

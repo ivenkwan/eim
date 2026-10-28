@@ -438,8 +438,7 @@ quarkus.flyway.locations=db/migration
 quarkus.otel.enabled=true
 quarkus.otel.exporter.otlp.traces.endpoint=\${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4317}
 
-# --- Health (smallrye-health: /q/health/live, /q/health/ready) ---
-quarkus.smallrye-health.root-path=q
+# --- Health (smallrye-health defaults: /q/health/live, /q/health/ready) ---
 
 # --- Tests: in-memory H2 in PostgreSQL compatibility mode ---
 %test.quarkus.datasource.db-kind=h2
@@ -453,12 +452,15 @@ quarkus.smallrye-health.root-path=q
   put(
     `${base}/src/main/resources/db/migration/V1__baseline.sql`,
     `-- TG-0 baseline only. The real EIM schema (FR doc section 12) lands in TG-1.
+-- NOTE: this file MUST be byte-identical across all five services — they share
+-- one database and Flyway history; per-service schemas get per-service history
+-- tables in TG-1.
 CREATE TABLE IF NOT EXISTS schema_baseline (
     id BIGSERIAL PRIMARY KEY,
     service VARCHAR(64) NOT NULL,
     applied_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
-INSERT INTO schema_baseline (service) VALUES ('${svc.dir}');
+INSERT INTO schema_baseline (service) VALUES ('eim-platform');
 `,
   );
 

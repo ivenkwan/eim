@@ -51,7 +51,7 @@ flowchart LR
 
 | Gate | Name | Anchor | Target window | Status |
 |---|---|---|---|---|
-| TG-0 | Program setup | Pre-development | Week 0–2 | ◐ 17/18 items built & verified 2026-10-28 — TG0-INF-3 live boot blocked by host inotify exhaustion (evidence: [TG-0 build log](doc/build-log/TG-0.md)) |
+| TG-0 | Program setup | Pre-development | Week 0–2 | ✅ **COMPLETE — 2026-10-29**: all 18 items built & verified; harness **23/23 gates PASS** incl. live kind-cluster smoke ([TG-0 build log](doc/build-log/TG-0.md)) |
 | TG-1 | Platform foundation & security baseline | PRD months 1–2 | Month 1 | ☐ Not started |
 | TG-2 | Data ingestion & credit/hierarchy | PRD months 1–2 | Months 1–2 | ☐ Not started |
 | TG-3 | Plan modeling & calculation engine | PRD months 3–4 | Months 3–4 | ☐ Not started |
@@ -65,7 +65,7 @@ flowchart LR
 
 ## TG-0 — Program setup *(pre-development, weeks 0–2)*
 
-> **Build status (2026-10-28)**: ✅ 17/18 items built and verified — 16/17 harness gates green (42/42 frontend tests, 9/9 backend tests, 2/2 golden fixtures, coverage 98.5% on the decimal core, Helm matrix ×4 postures, ADRs 1–9). ⛔ TG0-INF-3 live cluster boot blocked by a **host-level** `fs.inotify.max_user_instances` exhaustion on the shared dev machine (kubelet cAdvisor cannot init; remediation is a one-line sysctl for the host admin — full diagnosis and partial evidence in the [TG-0 build log](doc/build-log/TG-0.md)). Re-run `bash scripts/verify-tg0.sh` after the host fix to close the gate.
+> **Build status (2026-10-29): ✅ TG-0 COMPLETE — all 18 items built and verified, harness 23/23 gates PASS**, including the live kind-cluster smoke suite: 11/11 workloads Running on one umbrella chart, AGE extension + `eim_graph`, Kafka broker, S3 objectstore, **APISIX gateway routing to core-api's contract response**, Flyway baseline applied. The former host-inotify blocker was remediated (see [build log](doc/build-log/TG-0.md) §3) and the boot surfaced — and fixed — seven real chart/runtime defects along the way (§4). Frontend 42/42 tests, backend 9/9, golden 2/2, coverage 98.5% on the decimal core.
 
 **Objective**: repositories, toolchains, and guardrails such that every later merge is born compliant (types, tests, audit mapping, portability).
 
@@ -73,7 +73,7 @@ flowchart LR
 
 - [x] **TG0-INF-1** Create service repositories / monorepo layout: `eim-web` (pnpm + Turborepo: `web-app`, `ui-kit`, `api-client`, `schemas`, `shared-domain`), `eim-core-api`, `eim-connectors`, `eim-calc-engine`, `eim-process`, `eim-plan-compiler`, `helm/eim-platform` umbrella chart (arch §4, §10)
 - [x] **TG0-INF-2** Backend service skeletons (Quarkus) with OTel SDK, health probes, Flyway wired (NFR-90, arch §13.2)
-- [ ] **TG0-INF-3** ⛔ (blocked by host — see build log) Local dev environment: kind/k3s cluster script booting PostgreSQL+AGE, Kafka, MinIO, APISIX, Keycloak via the same Helm charts (NFR-80 dev target)
+- [x] **TG0-INF-3** Local dev environment: kind/k3s cluster script booting PostgreSQL+AGE, Kafka, objectstore (S3), APISIX, Keycloak via the same Helm charts (NFR-80 dev target) — ✅ live-verified 2026-10-29: 11/11 workloads, gateway E2E, AGE graph, Kafka, Flyway baseline (build log §1)
 - [x] **TG0-INF-4** OpenAPI 3.1 spec scaffolding per service + lint (spectral) in CI (NFR-101)
 - [x] **TG0-INF-5** Frontend codegen pipeline: OpenAPI → `openapi-typescript`/hey-api client + Zod schema generation; freshness check fails CI on spec drift (AD-5, NFR-103)
 
@@ -100,7 +100,7 @@ flowchart LR
 - [x] **TG0-OPS-4** Onboarding docs: service READMEs, local-run instructions, first-contribution path <2 days (NFR-105)
 
 **Exit criteria TG-0**: CI pipeline enforces types/tests/coverage/audit-mapping/chart-lint on a hello-world change; `k3s up` script boots the full platform from one umbrella chart; ADRs 1–9 merged.
-*Status (2026-10-28): CI-equivalent gates ✅ green on the hello-world path (`scripts/verify-tg0.sh` + `ci.yml`); ADRs 1–9 ✅ merged; cluster boot ⛔ pending host inotify fix — see [build log](doc/build-log/TG-0.md) §2–3.*
+*Status (2026-10-29): ALL MET — harness 23/23 (`scripts/verify-tg0.sh`); `scripts/dev-up.sh` boots the full platform (kind, helm release rev 9) with the gateway routing end-to-end; ADRs merged. Evidence: [build log](doc/build-log/TG-0.md) §1–2.*
 
 ---
 

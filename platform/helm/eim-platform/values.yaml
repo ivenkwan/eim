@@ -10,20 +10,26 @@ global:
 
 eim-web:
   enabled: true
+  otel: { enabled: false }  # dev: no collector yet (TG-1); enable per-env
 eim-core-api:
   enabled: true
+  otel: { enabled: false }  # dev: no collector yet (TG-1); enable per-env
 eim-connectors:
   enabled: true
+  otel: { enabled: false }  # dev: no collector yet (TG-1); enable per-env
 eim-calc-engine:
   enabled: true
+  otel: { enabled: false }  # dev: no collector yet (TG-1); enable per-env
 eim-process:
   enabled: true
+  otel: { enabled: false }  # dev: no collector yet (TG-1); enable per-env
 eim-plan-compiler:
   enabled: true
+  otel: { enabled: false }  # dev: no collector yet (TG-1); enable per-env
 
 eim-postgres:
   enabled: true
-  image: apache/age:PG16_latest
+  image: apache/age:release_PG16_1.6.0
   auth:
     database: eim
     username: eim
@@ -34,14 +40,13 @@ eim-kafka:
   image: apache/kafka:3.9.0
   clusterId: eim-dev-kraft-cluster-01
 
-eim-minio:
+eim-objectstore:
   enabled: true
-  image: minio/minio:RELEASE.2024-08-29T01-40-52Z
-  # rootUser / rootPassword: REQUIRED via --set (NFR-53)
+  image: chrislusf/seaweedfs:3.80
 
 eim-apisix:
   enabled: true
-  image: apache/apisix:3.11.0
+  image: apache/apisix:3.11.0-debian
 
 eim-keycloak:
   enabled: true

@@ -7,9 +7,7 @@ global:
   databasePassword: lint-placeholder
 eim-postgres:
   enabled: false
-eim-minio:
-  rootUser: lint-user
-  rootPassword: lint-placeholder
+eim-objectstore:
 eim-keycloak:
   adminUsername: lint-admin
   adminPassword: lint-placeholder

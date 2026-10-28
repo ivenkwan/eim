@@ -8,7 +8,7 @@ eim-postgres:
   enabled: false
 eim-kafka:
   enabled: false
-eim-minio:
+eim-objectstore:
   enabled: false
 eim-keycloak:
   adminUsername: lint-admin

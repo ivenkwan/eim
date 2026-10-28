@@ -16,9 +16,7 @@ eim-plan-compiler:
 eim-postgres:
   auth:
     password: REPLACE_VIA_SECRET_STORE
-eim-minio:
-  rootUser: eim-staging
-  rootPassword: REPLACE_VIA_SECRET_STORE
+eim-objectstore:
 eim-keycloak:
   adminUsername: admin
   adminPassword: REPLACE_VIA_SECRET_STORE

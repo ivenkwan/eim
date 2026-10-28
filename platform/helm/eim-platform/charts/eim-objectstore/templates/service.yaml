@@ -5,9 +5,6 @@ metadata:
 spec:
   selector: { app: {{ .Chart.Name }} }
   ports:
-    - name: api
+    - name: s3
       port: 9000
-      targetPort: api
-    - name: console
-      port: 9001
-      targetPort: console
+      targetPort: s3

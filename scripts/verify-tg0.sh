@@ -75,6 +75,8 @@ if kind get clusters 2>/dev/null | grep -q '^eim-dev$' && \
     'kubectl -n eim exec eim-postgres-0 -- psql -U eim -d eim -tAc "SELECT name FROM ag_catalog.ag_graph WHERE name='"'"'eim_graph'"'"'" | grep -qx eim_graph'
   step TG0-INF-3 "cluster: kafka broker responsive" bash -c \
     'kubectl -n eim exec eim-kafka-0 -- /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1'
+  step TG0-INF-3 "cluster: objectstore (S3) rollout ready" \
+    kubectl -n eim rollout status deploy/eim-objectstore --timeout=60s
   step TG0-INF-3 "cluster: apisix routes core-api hello" bash -c \
     'kubectl -n eim run curl-probe --rm -i --restart=Never --image=curlimages/curl:8.11.1 --command -- curl -sf http://eim-apisix:9080/api/v1/hello | grep -q "\"status\":\"ok\""'
   step TG0-INF-3 "cluster: flyway baseline applied" bash -c \

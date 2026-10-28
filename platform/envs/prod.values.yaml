@@ -8,9 +8,8 @@ eim-postgres:
   enabled: false
 eim-kafka:
   enabled: false
-eim-minio:
+eim-objectstore:
   enabled: false
-  # when re-enabled, rootUser/rootPassword come from the secret store
 eim-keycloak:
   adminUsername: admin
   adminPassword: REPLACE_VIA_SECRET_STORE

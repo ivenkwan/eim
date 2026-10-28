@@ -1,4 +1,9 @@
 #!/usr/bin/env node
+// NOTE (2026-10-29): this scaffold generated the INITIAL chart tree. The
+// committed charts under platform/helm/eim-platform have since evolved during
+// the live-cluster bring-up (apisix standalone mechanics, kafka /config mount,
+// objectstore on SeaweedFS, AGE 1.6 init) — see doc/build-log/TG-0.md §4
+// before regenerating anything from this file.
 // TG0-INF-6: scaffolds the eim-platform umbrella Helm chart with
 // per-component subcharts (arch §13.2). Idempotent — existing files are kept.
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';

@@ -12,21 +12,22 @@ spec:
       labels: { app: {{ .Chart.Name }} }
     spec:
       containers:
-        - name: minio
+        - name: objectstore
+          # Dev posture runs SeaweedFS (S3-compatible). Non-dev postures
+          # substitute any S3 endpoint via values (NFR-81) — access keys are
+          # injected from the secret store, never defaulted (NFR-53).
           image: {{ .Values.image }}
-          args: ["server", "/data", "--console-address", ":9001"]
-          env:
-            - name: MINIO_ROOT_USER
-              value: {{ required "eim-minio.rootUser is required (NFR-53)" .Values.rootUser | quote }}
-            - name: MINIO_ROOT_PASSWORD
-              value: {{ required "eim-minio.rootPassword is required (NFR-53)" .Values.rootPassword | quote }}
+          args:
+            - server
+            - -dir=/data
+            - -s3
+            - -s3.port=9000
+            - -master.volumeSizeLimitMB=1024
           ports:
-            - name: api
+            - name: s3
               containerPort: 9000
-            - name: console
-              containerPort: 9001
           readinessProbe:
-            httpGet: { path: /minio/health/live, port: api }
+            tcpSocket: { port: s3 }
             initialDelaySeconds: 5
             periodSeconds: 5
           volumeMounts:

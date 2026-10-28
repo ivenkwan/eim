@@ -17,6 +17,7 @@ spec:
           env:
             - name: APISIX_STAND_ALONE
               value: "true"
+          args: ["docker-start"]
           ports:
             - name: gateway
               containerPort: 9080
@@ -25,9 +26,13 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 5
           volumeMounts:
-            - name: config
-              mountPath: /usr/local/apisix/conf
+            # subPath file mount: conf/ stays writable for the entrypoint's
+            # standalone config generation; only the routes file is ours.
+            - name: routes
+              mountPath: /usr/local/apisix/conf/apisix.yaml
+              subPath: apisix.yaml
+              readOnly: true
       volumes:
-        - name: config
+        - name: routes
           configMap:
             name: {{ .Chart.Name }}-config

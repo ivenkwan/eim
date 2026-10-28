@@ -54,7 +54,7 @@ echo "[matrix] posture: fully external data plane"
 render external-all.yaml extall.yaml
 lacks extall.yaml 'name: eim-postgres' 'no embedded PostgreSQL'
 lacks extall.yaml 'name: eim-kafka' 'no embedded Kafka'
-lacks extall.yaml 'name: eim-minio' 'no embedded MinIO'
+lacks extall.yaml 'name: eim-objectstore' 'no embedded objectstore'
 has extall.yaml 'name: eim-core-api' 'apps still deploy'
 has extall.yaml 'name: eim-apisix' 'gateway still deploys'
 
