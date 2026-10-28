@@ -5,7 +5,7 @@
 | **Document status** | Draft v1.1 — adds §12 Audit architecture: enforced detailed audit for all events and configuration changes |
 | **Date** | 2026-10-28 |
 | **Source** | Derived from *EIM Platform Business Proposal.pdf*, constrained by the platform mandates below |
-| **Companion documents** | [01-functional-requirements.md](01-functional-requirements.md) · [02-non-functional-requirements.md](02-non-functional-requirements.md) |
+| **Companion documents** | [01-functional-requirements.md](01-functional-requirements.md) · [02-non-functional-requirements.md](02-non-functional-requirements.md) · [04-manual-intervention-playbook.md](04-manual-intervention-playbook.md) |
 
 ---
 

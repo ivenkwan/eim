@@ -9,6 +9,8 @@
 | [Functional Requirements](doc/01-functional-requirements.md) | Full-roadmap FR catalog (Phase 1–3) with acceptance criteria and traceability |
 | [Non-Functional Requirements](doc/02-non-functional-requirements.md) | Quality attributes: precision & determinism, performance, security, portability, compliance — each with measurable targets |
 | [Architecture Plan](doc/03-architecture-plan.md) | Target architecture on the mandated stack: cloud-agnostic Kubernetes, PostgreSQL + AGE, APISIX gateway, strict TypeScript frontend, Drools (DRL + DMN) rules, Kogito process automation |
+| [Manual Intervention & Approval Playbook](doc/04-manual-intervention-playbook.md) | Every human intervention/approval point (MI-xx) and all manual adjustment procedures (MA-01…14) with reason codes, SLAs, and audit expectations |
+| [Build TODO & Tollgates](todo.md) | All build activities grouped into tollgates TG-0…TG-8 with workstreams, exit criteria, and FR/NFR traceability |
 
 ## Technology mandates
 

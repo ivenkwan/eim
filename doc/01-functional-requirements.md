@@ -5,7 +5,7 @@
 | **Document status** | Draft v1.1 — adds mandated detailed audit for all events and configuration changes (FR-601.4, FR-610, FR-612, FR-613) |
 | **Date** | 2026-10-28 |
 | **Source** | Derived from *EIM Platform Business Proposal.pdf* (business case, Phase 1 MVP PRD, Phase 2 ASC 606/IFRS 15 specification, DAG calculation engine architecture, UX wireframe specifications) |
-| **Companion documents** | [02-non-functional-requirements.md](02-non-functional-requirements.md) · [03-architecture-plan.md](03-architecture-plan.md) |
+| **Companion documents** | [02-non-functional-requirements.md](02-non-functional-requirements.md) · [03-architecture-plan.md](03-architecture-plan.md) · [04-manual-intervention-playbook.md](04-manual-intervention-playbook.md) |
 
 ---
 

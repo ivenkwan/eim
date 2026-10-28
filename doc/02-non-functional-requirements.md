@@ -5,7 +5,7 @@
 | **Document status** | Draft v1.1 — adds NFR-64 unified audit coverage for all events and configuration changes |
 | **Date** | 2026-10-28 |
 | **Source** | Derived from *EIM Platform Business Proposal.pdf* (PRD §5 NFRs, DAG engine SLAs, audit checklist, UX accessibility specs) |
-| **Companion documents** | [01-functional-requirements.md](01-functional-requirements.md) · [03-architecture-plan.md](03-architecture-plan.md) |
+| **Companion documents** | [01-functional-requirements.md](01-functional-requirements.md) · [03-architecture-plan.md](03-architecture-plan.md) · [04-manual-intervention-playbook.md](04-manual-intervention-playbook.md) |
 
 ---
 
