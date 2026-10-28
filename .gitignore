@@ -32,3 +32,7 @@ receipts/
 
 # Logs
 *.log
+
+# Session tool dirs
+.zcode/
+.video_agent/
