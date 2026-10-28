@@ -1,1 +1,2 @@
-# eim
+# Enterprise Incentive Management
+## AI-native Enterprise Incentive Management (EIM) platform that combines the agility of no-code, spreadsheet-style modeling with enterprise-grade governance (ASC 606 / IFRS 15) and real-time seller behavioral motivation. By bridging the gap between Finance, RevOps, and Sales, our platform will reduce commission processing time by up to 80%, eliminate payout leakage, and turn compensation plans into active revenue drivers rather than static post-mortem statements.
