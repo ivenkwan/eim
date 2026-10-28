@@ -24,5 +24,11 @@ Chart.lock
 .vscode/
 .DS_Store
 
+# Local security-tool artifacts (never commit)
+.mimosa/
+**/.mimosa/
+receipts/
+**/receipts/
+
 # Logs
 *.log
