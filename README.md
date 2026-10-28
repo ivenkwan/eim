@@ -1,2 +1,21 @@
 # Enterprise Incentive Management
 ### AI-native Enterprise Incentive Management (EIM) platform that combines the agility of no-code, spreadsheet-style modeling with enterprise-grade governance (ASC 606 / IFRS 15) and real-time seller behavioral motivation. By bridging the gap between Finance, RevOps, and Sales, our platform will reduce commission processing time by up to 80%, eliminate payout leakage, and turn compensation plans into active revenue drivers rather than static post-mortem statements.
+
+## Documentation
+
+| Document | Contents |
+|---|---|
+| [Business Proposal](doc/EIM%20Platform%20Business%20Proposal.pdf) | Market case, competitive positioning, phased roadmap, PRD, ASC 606 module spec, DAG engine design, UX wireframes (source material) |
+| [Functional Requirements](doc/01-functional-requirements.md) | Full-roadmap FR catalog (Phase 1–3) with acceptance criteria and traceability |
+| [Non-Functional Requirements](doc/02-non-functional-requirements.md) | Quality attributes: precision & determinism, performance, security, portability, compliance — each with measurable targets |
+| [Architecture Plan](doc/03-architecture-plan.md) | Target architecture on the mandated stack: cloud-agnostic Kubernetes, PostgreSQL + AGE, APISIX gateway, strict TypeScript frontend, Drools (DRL + DMN) rules, Kogito process automation |
+
+## Technology mandates
+
+- **Cloud-agnostic**, deployed on CNCF-conformant **Kubernetes**
+- **PostgreSQL** as the system of record, with the **Apache AGE** graph extension for hierarchy / credit / plan-dependency graphs
+- **Apache APISIX** as the API gateway
+- **Strict type-safe TypeScript** frontend
+- **Drools** for forward- and backward-chaining rules plus **DMN** decision tables
+- **Kogito** for cloud-native business process automation (BPMN)
+
