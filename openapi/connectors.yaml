@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: EIM Connectors
-  version: 0.1.0
-  summary: Ingestion connector runtime (Salesforce, HubSpot, Snowflake, CSV)
+  version: 0.2.0
+  summary: Ingestion connector runtime (Salesforce, HubSpot, Snowflake, CSV) and effective-dated hierarchy admin
 servers:
   - url: http://localhost:8081
 paths:
@@ -17,6 +17,184 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HelloResponse'
+  /api/v1/ingestion/csv:
+    post:
+      operationId: uploadCsv
+      summary: Upload a CSV batch for ingestion with per-row quarantine (FR-201.1/201.5, FR-203)
+      x-audit:
+        action: CONNECTOR_RUN
+        stream: event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CsvUploadRequest'
+      responses:
+        '202':
+          description: Batch accepted for ingestion (rows may quarantine individually)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestionResult'
+        '400':
+          description: Missing csv body
+  /api/v1/ingestion/salesforce/run:
+    post:
+      operationId: runSalesforceSync
+      summary: Pull an object from Salesforce via OAuth password grant and ingest it (FR-202.1)
+      x-audit:
+        action: CONNECTOR_RUN
+        stream: event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SalesforceRunRequest'
+      responses:
+        '202':
+          description: Sync executed; per-row quarantine reported
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectorRunResult'
+        '400':
+          description: Missing SOQL or credentials
+        '502':
+          description: Salesforce unreachable / token exchange failed
+  /api/v1/ingestion/hubspot/run:
+    post:
+      operationId: runHubspotSync
+      summary: Pull HubSpot CRM v3 deals with a private-app token and ingest them (FR-201.1)
+      x-audit:
+        action: CONNECTOR_RUN
+        stream: event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HubspotRunRequest'
+      responses:
+        '202':
+          description: Sync executed; per-row quarantine reported
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectorRunResult'
+        '502':
+          description: HubSpot unreachable / token rejected
+  /api/v1/ingestion/query/run:
+    post:
+      operationId: runQueryConnector
+      summary: Ingest from a read-only SQL query (Snowflake/warehouse posture, FR-202.3)
+      x-audit:
+        action: CONNECTOR_RUN
+        stream: event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRunRequest'
+      responses:
+        '202':
+          description: Query executed and ingested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectorRunResult'
+        '400':
+          description: Non-SELECT statement rejected
+  /api/v1/org/payee:
+    post:
+      operationId: createPayee
+      summary: Create a payee with cycle validation and graph projection (FR-302.2)
+      x-audit:
+        action: CONFIG_CHANGE
+        stream: config
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PayeeUpsertRequest'
+      responses:
+        '202':
+          description: Payee created; audit + outbox emitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayeeMutationResult'
+        '409':
+          description: Hierarchy cycle detected — edit rejected
+  /api/v1/org/payee/{payeeId}/manager:
+    put:
+      operationId: movePayeeManager
+      summary: Move a payee to a new manager effective-dated (SCD-2, FR-302.1)
+      x-audit:
+        action: CONFIG_CHANGE
+        stream: config
+      parameters:
+        - name: payeeId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManagerMoveRequest'
+      responses:
+        '202':
+          description: Version row inserted; graph edge re-dated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayeeMutationResult'
+        '404':
+          description: Payee not found or already closed
+        '409':
+          description: Hierarchy cycle detected — edit rejected
+  /api/v1/org/rollup/{managerPayeeId}:
+    get:
+      operationId: getRollupScope
+      summary: Payees under a manager, optionally as-of a date (FR-303; read-only)
+      parameters:
+        - name: managerPayeeId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: asOf
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Transitive rollup scope
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RollupResponse'
+  /api/v1/org/wavefronts:
+    get:
+      operationId: getWavefronts
+      summary: Topological levels of every payee for parallel calc scheduling (FR-503; read-only)
+      responses:
+        '200':
+          description: Payee levels (0 = leaf)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WavefrontResponse'
 components:
   schemas:
     HelloResponse:
@@ -30,3 +208,184 @@ components:
           enum: [ok]
         message:
           type: string
+    CsvUploadRequest:
+      type: object
+      required: [csv]
+      properties:
+        objectName:
+          type: string
+          description: Connector object key for watermark state
+          default: manual_upload
+        csv:
+          type: string
+          description: RFC-4180-ish CSV with a header row
+        mapping:
+          type: object
+          additionalProperties:
+            type: string
+          description: canonical field -> source column override
+    IngestionResult:
+      type: object
+      required: [accepted, batchId, total, ingested, quarantined, watermarkAfter, lateArriving]
+      properties:
+        accepted:
+          type: boolean
+        batchId:
+          type: string
+          format: uuid
+        total:
+          type: integer
+        ingested:
+          type: integer
+        quarantined:
+          type: integer
+        watermarkAfter:
+          type: [string, 'null']
+        lateArriving:
+          type: integer
+          description: Rows landing in a LOCKED period — each emits eim.trueup.required
+    SalesforceRunRequest:
+      type: object
+      required: [soql]
+      properties:
+        soql:
+          type: string
+          description: SOQL SELECT to execute
+        watermark:
+          type: [string, 'null']
+        mapping:
+          type: object
+          additionalProperties:
+            type: string
+        client_id:
+          type: string
+          description: Supplied from the secret store at call time, never persisted
+        client_secret:
+          type: string
+        username:
+          type: string
+        password:
+          type: string
+    HubspotRunRequest:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          description: Private-app access token from the secret store at call time
+        watermark:
+          type: [string, 'null']
+          description: Paging cursor (after) for incremental sync
+        default_currency:
+          type: string
+          default: USD
+        mapping:
+          type: object
+          additionalProperties:
+            type: string
+    QueryRunRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+          description: SELECT-only SQL (enforced)
+        object_name:
+          type: string
+          default: warehouse_probe
+        mapping:
+          type: object
+          additionalProperties:
+            type: string
+    ConnectorRunResult:
+      type: object
+      required: [batchId, accepted, quarantined]
+      properties:
+        batchId:
+          type: string
+          format: uuid
+        accepted:
+          type: integer
+        quarantined:
+          type: integer
+    PayeeUpsertRequest:
+      type: object
+      properties:
+        payeeId:
+          type: [string, 'null']
+          format: uuid
+        employeeNumber:
+          type: string
+        fullName:
+          type: string
+        email:
+          type: string
+        roleTitle:
+          type: string
+        managerPayeeId:
+          type: [string, 'null']
+          format: uuid
+        effectiveStart:
+          type: string
+          format: date
+        effectiveEnd:
+          type: [string, 'null']
+          format: date
+    ManagerMoveRequest:
+      type: object
+      required: [manager_payee_id, effective_start]
+      properties:
+        manager_payee_id:
+          type: string
+          format: uuid
+        effective_start:
+          type: string
+          format: date
+        effective_end:
+          type: [string, 'null']
+          format: date
+    PayeeMutationResult:
+      type: object
+      required: [payeeId]
+      properties:
+        payeeId:
+          type: string
+          format: uuid
+        manager:
+          type: [string, 'null']
+        effectiveStart:
+          type: [string, 'null']
+          format: date
+    RollupResponse:
+      type: object
+      required: [manager, asOf, payees, count]
+      properties:
+        manager:
+          type: string
+        asOf:
+          type: string
+          description: the literal "current" or the requested date
+        payees:
+          type: array
+          items:
+            type: string
+            format: uuid
+        count:
+          type: integer
+    WavefrontResponse:
+      type: object
+      required: [levels, maxLevel]
+      properties:
+        levels:
+          type: array
+          items:
+            type: object
+            required: [payeeId, level]
+            properties:
+              payeeId:
+                type: string
+                format: uuid
+              level:
+                type: integer
+        maxLevel:
+          type: integer

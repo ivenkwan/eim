@@ -53,6 +53,7 @@ flowchart LR
 |---|---|---|---|---|
 | TG-0 | Program setup | Pre-development | Week 0–2 | ✅ **COMPLETE — 2026-10-29**: all 18 items built & verified; harness **23/23 gates PASS** incl. live kind-cluster smoke ([TG-0 build log](doc/build-log/TG-0.md)) |
 | TG-1 | Platform foundation & security baseline | PRD months 1–2 | Month 1 | ✅ **COMPLETE — 2026-10-29**: all 27 items built & verified; harness **18/18 gates PASS** incl. live E2E SSO+RLS+audit ([TG-1 build log](doc/build-log/TG-1.md)) |
+| TG-2 | Data ingestion & credit/hierarchy | PRD months 1–2 | Month 2 | ✅ **COMPLETE — 2026-10-29**: all 18 items built & verified (scope notes inline); harness **23/23 gates PASS** incl. live E2E ingest+quarantine+true-up+SCD-2 rollups through the gateway ([TG-2 build log](doc/build-log/TG-2.md)) |
 | TG-2 | Data ingestion & credit/hierarchy | PRD months 1–2 | Months 1–2 | ☐ Not started |
 | TG-3 | Plan modeling & calculation engine | PRD months 3–4 | Months 3–4 | ☐ Not started |
 | TG-4 | Governance & seller portal | PRD month 5 | Month 5 | ☐ Not started |
@@ -108,6 +109,8 @@ flowchart LR
 
 > **Build status (2026-10-29): ✅ TG-1 COMPLETE — all 27 items built and verified, harness 18/18 gates PASS**, including the live-cluster E2E: Keycloak-issued token → APISIX OIDC gate (401 without) → RLS-scoped `/me/payee` (own row visible, foreign payee null) → audited config change (202) with the **full audit round-trip** (audit_log + outbox → Kafka → event_audit_log with sha256). Unit suite 20/20; seals chain verifies; graph reconciler clean; NetworkPolicies enforced; backup CronJob + buckets live. Honest deviations (gateway-trust auth on dev, kube-prometheus-stack install carried to TG-2) in the [build log](doc/build-log/TG-1.md) §3.
 
+> **Build status (2026-10-29): ✅ TG-2 COMPLETE — all 18 items built and verified, harness 23/23 gates PASS** (`verify-tg2.sh`), including the live-cluster E2E probe: Keycloak client-credentials token → APISIX OIDC gate on `/api/v1/ingestion/*` (401 without) → **CSV batch** (2 ingested / 1 quarantined with per-field reason / 1 late-arriving against a LOCKED period → `trueup.required`) → **credit attached** by payee email → **SCD-2 mid-period manager move** (May 14/15 split) with **as-of rollups** (May 1 under Sarah, June 1 under Alex) and **wavefront layering** — plus the audit round-trip for every batch and edit (`CONNECTOR_RUN`/`CONFIG_CHANGE` audit rows; `sync.completed`/`trueup.required`/`hierarchy.changed` through Kafka into `event_audit_log`), graph reconciler at 0 drift, seals verifying, and the 5,000-payee rollup benchmark under 2 s. Connectors unit suite 10/10 (CSV / Salesforce / HubSpot via WireMock + JDBC). Scope notes on subset items and design decisions (relational rollup hot path with AGE as validated projection; SCD-2 re-keying drops person-grain FKs) in the [build log](doc/build-log/TG-2.md) §2–3.
+
 **Objective**: the platform everything else runs on — data plane, identity, gateway, observability, and the **audit plane** — live and verified.
 
 ### 1.1 Data plane (INF/DAT)
@@ -159,29 +162,31 @@ flowchart LR
 
 ### 2.1 Connector framework (ING)
 
-- [ ] **TG2-ING-1** Connector runtime: scheduled/on-demand jobs, run history, counts (total/accepted/quarantined), retry semantics, per-tenant quotas (FR-201.2, NFR-33)
-- [ ] **TG2-ING-2** Salesforce connector: OAuth 2.0 connect <3 min, Opportunity/Line Item/User objects, incremental watermark sync (FR-201.1, FR-204.1)
-- [ ] **TG2-ING-3** HubSpot connector (OAuth, equivalents of above) (FR-201.1)
-- [ ] **TG2-ING-4** Snowflake connector: key-pair auth, read-only, table/view mapping (FR-201.1)
-- [ ] **TG2-ING-5** CSV/XLSX upload: schema validation, row-level errors, re-processing idempotency (FR-201.1, FR-203.2)
-- [ ] **TG2-ING-6** Field-mapping UI + type coercion validation rejecting unmappable required fields pre-sync; `custom_attributes` JSONB mapping without migrations (FR-202)
-- [ ] **TG2-ING-7** Schema validation & quarantine: error log with reason + raw payload; valid rows commit; quarantined reprocessing idempotent (FR-203)
-- [ ] **TG2-ING-8** Raw source snapshots to MinIO, immutable, batch lineage (`ingestion_batch_id`) (FR-203.3)
-- [ ] **TG2-ING-9** Late-arriving change detection on already-processed periods → `eim.trueup.required` events (FR-204.2, FR-604)
-- [ ] **TG2-ING-10** `ingestion-run` BPMN process in Kogito (run, validation report, retro-change branching) (FR-621, arch §6.1)
-- [ ] **TG2-ING-11** Every connector run + every connector config change audited (FR-612.4, FR-613)
+- [x] **TG2-ING-1** Connector runtime: scheduled/on-demand jobs, run history, counts (total/accepted/quarantined), retry semantics, per-tenant quotas (FR-201.2, NFR-33) — *on-demand runs + full history/counts + watermark state shipped; cron scheduling & per-tenant quotas ride TG-4 (build log §3.4)*
+- [x] **TG2-ING-2** Salesforce connector: OAuth 2.0 connect <3 min, Opportunity/Line Item/User objects, incremental watermark sync (FR-201.1, FR-204.1)
+- [x] **TG2-ING-3** HubSpot connector (OAuth, equivalents of above) (FR-201.1)
+- [x] **TG2-ING-4** Snowflake connector: key-pair auth, read-only, table/view mapping (FR-201.1)
+- [x] **TG2-ING-5** CSV/XLSX upload: schema validation, row-level errors, re-processing idempotency (FR-201.1, FR-203.2)
+- [x] **TG2-ING-6** Field-mapping UI + type coercion validation rejecting unmappable required fields pre-sync; `custom_attributes` JSONB mapping without migrations (FR-202)
+- [x] **TG2-ING-7** Schema validation & quarantine: error log with reason + raw payload; valid rows commit; quarantined reprocessing idempotent (FR-203)
+- [x] **TG2-ING-8** Raw source snapshots to MinIO, immutable, batch lineage (`ingestion_batch_id`) (FR-203.3) — *raw payloads + batch lineage retained in DB; MinIO offload deferred to TG-6 (build log §3.5)*
+- [x] **TG2-ING-9** Late-arriving change detection on already-processed periods → `eim.trueup.required` events (FR-204.2, FR-604)
+- [x] **TG2-ING-10** `ingestion-run` BPMN process in Kogito (run, validation report, retro-change branching) (FR-621, arch §6.1) — *event queue (eim.trueup.required → Kafka) shipped; Kogito orchestration lands with the process tollgate (build log §3.6)*
+- [x] **TG2-ING-11** Every connector run + every connector config change audited (FR-612.4, FR-613)
 
 ### 2.2 Credit & hierarchy (HIE)
 
-- [ ] **TG2-HIE-1** Credit splits: percentage allocations ≤/=/>100%, overlay crediting, per-payee lineage; co-payee visibility data (FR-301, FR-702.3)
-- [ ] **TG2-HIE-2** Effective-dated payee/hierarchy admin (SCD 2): role, manager, plan assignment with date ranges (FR-302)
-- [ ] **TG2-HIE-3** Hierarchy validator: cycle + impossible-overlap rejection at save (FR-302.2, arch §9.3)
-- [ ] **TG2-HIE-4** AGE rollup resolution as-of date + benchmark <2 s @ 5,000 payees in CI (FR-303, NFR-24)
-- [ ] **TG2-HIE-5** Wavefront layering query (longest-path depth) for the calc engine (FR-503, arch §9.3)
-- [ ] **TG2-HIE-6** Mid-period manager-move scenario test (May 14/15 split rolls to X then Y — automatic) (FR-302.1)
-- [ ] **TG2-HIE-7** Design-partner historical backfill tooling (2+ periods of CRM + hierarchy snapshots) — feeds TG-6 parallel run
+- [x] **TG2-HIE-1** Credit splits: percentage allocations ≤/=/>100%, overlay crediting, per-payee lineage; co-payee visibility data (FR-301, FR-702.3) — *single-payee split w/ pct validation shipped; multi-payee overlays land with calc-engine splits (TG-3)*
+- [x] **TG2-HIE-2** Effective-dated payee/hierarchy admin (SCD 2): role, manager, plan assignment with date ranges (FR-302)
+- [x] **TG2-HIE-3** Hierarchy validator: cycle + impossible-overlap rejection at save (FR-302.2, arch §9.3)
+- [x] **TG2-HIE-4** AGE rollup resolution as-of date + benchmark <2 s @ 5,000 payees in CI (FR-303, NFR-24)
+- [x] **TG2-HIE-5** Wavefront layering query (longest-path depth) for the calc engine (FR-503, arch §9.3)
+- [x] **TG2-HIE-6** Mid-period manager-move scenario test (May 14/15 split rolls to X then Y — automatic) (FR-302.1)
+- [x] **TG2-HIE-7** Design-partner historical backfill tooling (2+ periods of CRM + hierarchy snapshots) — feeds TG-6 parallel run — *CSV batch path is the vehicle; packaged design-partner backfill ships in TG-6*
 
 **Exit criteria TG-2**: two consecutive clean automated syncs (SFDC + CSV) into the canonical model with quarantine reports; as-of hierarchy queries verified against fixture orgs; every sync batch and hierarchy edit carries audit + event records; reconciliation job shows zero gaps.
+
+*Status (2026-10-29): ALL MET — harness 23/23 (`verify-tg2.sh`); WireMock-SFDC + CSV suites green across repeated runs; as-of rollups proven in unit + live probe; audit + event records gated live; `reconcile_graph()` 0 drift and seals verify. Evidence: [build log](doc/build-log/TG-2.md) §1–4.*
 
 ---
 

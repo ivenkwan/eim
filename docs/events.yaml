@@ -34,6 +34,10 @@ topics:
     producer: [eim-connectors, eim-core-api]
     consumers: [eim-process]
     description: Retro change detected against a locked period; queue review
+  - name: eim.hierarchy.changed
+    producer: eim-connectors
+    consumers: [eim-process, eim-calc-engine]
+    description: Effective-dated hierarchy edited (SCD-2 manager move / payee create)
   - name: eim.trueup.posted
     producer: eim-process
     consumers: [eim-calc-engine, eim-core-api]

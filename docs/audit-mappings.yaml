@@ -30,6 +30,9 @@ events:
   eim.trueup.required:
     stream: event
     action: DATA_OVERRIDE
+  eim.hierarchy.changed:
+    stream: config
+    action: CONFIG_CHANGE
   eim.trueup.posted:
     stream: event
     action: TRUEUP_POSTING

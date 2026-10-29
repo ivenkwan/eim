@@ -25,7 +25,13 @@ public class EventAuditConsumer {
     @Inject
     EventAuditService eventAudit;
 
+    // One auditor for every audited domain topic (NFR-64): channels are
+    // declared per-topic in application.properties; the Kafka metadata
+    // carries the real topic name into event_audit_log.
     @Incoming("config-events-in")
+    @Incoming("sync-events-in")
+    @Incoming("trueup-events-in")
+    @Incoming("hierarchy-events-in")
     public CompletionStage<Void> onEvent(Message<String> msg) {
         IncomingKafkaRecordMetadata<Long, String> meta =
                 msg.getMetadata(IncomingKafkaRecordMetadata.class).orElse(null);
