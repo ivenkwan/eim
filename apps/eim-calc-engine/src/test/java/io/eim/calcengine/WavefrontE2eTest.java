@@ -46,6 +46,9 @@ class WavefrontE2eTest {
     @Inject
     WavefrontRunner runner;
 
+    @Inject
+    io.eim.calcengine.run.ShadowReplay replay;
+
     @BeforeEach
     void seed() throws SQLException {
         cleanSlate();
@@ -85,6 +88,7 @@ class WavefrontE2eTest {
     private void cleanSlate() throws SQLException {
         try (Connection c = ds.getConnection()) {
             update(c, "DELETE FROM calc_run WHERE tenant_id = ?::uuid", TENANT);
+            update(c, "DELETE FROM trueup_review WHERE tenant_id = ?::uuid", TENANT);
             update(c, "DELETE FROM commission_ledger_entry WHERE tenant_id = ?::uuid", TENANT);
             update(c, "DELETE FROM credit_allocation WHERE transaction_id IN "
                     + "(SELECT transaction_id FROM raw_transaction WHERE tenant_id = ?::uuid)",
@@ -178,7 +182,7 @@ class WavefrontE2eTest {
 
     @Test
     @TestSecurity(user = "calc", roles = {"comp_admin"})
-    void shadowReplayEmitsTrueupWithOriginAfterLateArrival() throws SQLException {
+    void shadowReplayEmitsTrueupWithOriginAfterLateArrival() throws Exception {
         given().contentType("application/json")
                 .body(Map.of("tenantId", TENANT, "payoutPeriodId", P_APR,
                         "planVersionHash", HASH))
@@ -189,6 +193,7 @@ class WavefrontE2eTest {
             txn(c, "t3-late", "2026-04-25", "40000");
         }
 
+        // TG-4: the gateway path routes diffs into the Finance review queue
         var result = given().contentType("application/json")
                 .body(Map.of("tenantId", TENANT, "lockedPeriodId", P_APR,
                         "openPeriodId", P_MAY, "planVersionHash", HASH))
@@ -196,8 +201,14 @@ class WavefrontE2eTest {
                 .then().statusCode(202)
                 .extract().jsonPath();
         assertEquals(1, (int) result.getInt("diffs"), "one payee drifted");
+        assertEquals("1", scalar("SELECT count(*) FROM trueup_review "
+                + "WHERE open_period_id = ?::uuid AND status = 'PENDING'", P_MAY),
+                "diff queued for Finance review (FR-604.2)");
 
-        // shadow: 0 -> 200000 = 10000 + 7500 + 10000 = 27500 vs 19500 -> +8000
+        // the engine-level direct-post path stays available (its own
+        // regression): shadow 0 -> 200000 = 27500 vs 19500 -> +8000
+        replay.replay(java.util.UUID.fromString(TENANT), java.util.UUID.fromString(P_APR),
+                java.util.UUID.fromString(P_MAY), HASH, false);
         assertEquals("8000.0000", scalar(
                 "SELECT payout_amount::text FROM commission_ledger_entry "
                         + "WHERE payout_period_id = ?::uuid "
@@ -240,7 +251,7 @@ class WavefrontE2eTest {
         update(c, "INSERT INTO credit_allocation (credit_allocation_id, tenant_id, "
                         + "transaction_id, payee_id, split_pct, effective_date) "
                         + "VALUES (CAST(? AS uuid),CAST(? AS uuid),CAST(? AS uuid),"
-                        + "CAST(? AS uuid),100,CAST(? AS date))",
+                        + "CAST(? AS uuid),1,CAST(? AS date))",
                 UUID.randomUUID().toString(), TENANT, txId, REP, date);
     }
 

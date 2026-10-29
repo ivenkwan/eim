@@ -1,0 +1,40 @@
+{
+  "planName": "TG4 Cycle Plan 2026",
+  "components": [
+    {
+      "name": "commission",
+      "kind": "TIER_TABLE",
+      "outputType": "CURRENCY",
+      "tiers": {
+        "mode": "MARGINAL",
+        "basis": "AMOUNT",
+        "brackets": [
+          {
+            "upTo": "100000",
+            "rate": "0.10"
+          },
+          {
+            "upTo": "150000",
+            "rate": "0.15"
+          },
+          {
+            "rate": "0.20"
+          }
+        ]
+      },
+      "protections": {
+        "capScope": "PERIOD",
+        "capBasis": "AMOUNT",
+        "capValue": "50000"
+      }
+    },
+    {
+      "name": "team_commission",
+      "kind": "ROLLUP",
+      "outputType": "CURRENCY",
+      "dependsOn": [
+        "commission"
+      ]
+    }
+  ]
+}

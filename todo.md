@@ -55,6 +55,7 @@ flowchart LR
 | TG-1 | Platform foundation & security baseline | PRD months 1–2 | Month 1 | ✅ **COMPLETE — 2026-10-29**: all 27 items built & verified; harness **18/18 gates PASS** incl. live E2E SSO+RLS+audit ([TG-1 build log](doc/build-log/TG-1.md)) |
 | TG-2 | Data ingestion & credit/hierarchy | PRD months 1–2 | Month 2 | ✅ **COMPLETE — 2026-10-29**: all 18 items built & verified (scope notes inline); harness **23/23 gates PASS** incl. live E2E ingest+quarantine+true-up+SCD-2 rollups through the gateway ([TG-2 build log](doc/build-log/TG-2.md)) |
 | TG-3 | Plan modeling & calculation engine | PRD months 3–4 | Months 3–4 | ✅ **COMPLETE — 2026-10-29**: all 33 items built & verified (scope notes inline); harness **25/25 gates PASS** incl. live E2E publish→run→preview→shadow-replay through the gateway ([TG-3 build log](doc/build-log/TG-3.md)) |
+| TG-4 | Governance & seller portal | PRD month 5 | Month 5 | ✅ **COMPLETE — 2026-10-30**: all 13 items built & verified (scope notes inline); harness **19/19 gates PASS ×2 runs** incl. the full monthly-cycle E2E probe through the gateway ([TG-4 build log](doc/build-log/TG-4.md)) |
 | TG-2 | Data ingestion & credit/hierarchy | PRD months 1–2 | Months 1–2 | ☐ Not started |
 | TG-3 | Plan modeling & calculation engine | PRD months 3–4 | Months 3–4 | ☐ Not started |
 | TG-4 | Governance & seller portal | PRD month 5 | Month 5 | ☐ Not started |
@@ -113,6 +114,8 @@ flowchart LR
 > **Build status (2026-10-29): ✅ TG-2 COMPLETE — all 18 items built and verified, harness 23/23 gates PASS** (`verify-tg2.sh`), including the live-cluster E2E probe: Keycloak client-credentials token → APISIX OIDC gate on `/api/v1/ingestion/*` (401 without) → **CSV batch** (2 ingested / 1 quarantined with per-field reason / 1 late-arriving against a LOCKED period → `trueup.required`) → **credit attached** by payee email → **SCD-2 mid-period manager move** (May 14/15 split) with **as-of rollups** (May 1 under Sarah, June 1 under Alex) and **wavefront layering** — plus the audit round-trip for every batch and edit (`CONNECTOR_RUN`/`CONFIG_CHANGE` audit rows; `sync.completed`/`trueup.required`/`hierarchy.changed` through Kafka into `event_audit_log`), graph reconciler at 0 drift, seals verifying, and the 5,000-payee rollup benchmark under 2 s. Connectors unit suite 10/10 (CSV / Salesforce / HubSpot via WireMock + JDBC). Scope notes on subset items and design decisions (relational rollup hot path with AGE as validated projection; SCD-2 re-keying drops person-grain FKs) in the [build log](doc/build-log/TG-2.md) §2–3.
 
 > **Build status (2026-10-29): ✅ TG-3 COMPLETE — all 33 items built and verified, harness 25/25 gates PASS** (`verify-tg3.sh`), including the live-cluster E2E: Keycloak token → APISIX OIDC gate on `/api/v1/plans/*` (401 without) → **publish** the canonical plan (type-checked, Tarjan cycle-gated, tier-verified → immutable DRL/DMN/helper artifacts) → **calculation run** (wavefront-scheduled over AGE levels, atomic ledger + JSONB traces + manager rollups) → **sandbox preview** $90k→$160k = **10,500.00** → **lock + late-arriving deal → shadow replay** with pinned artifacts → typed PRIOR_PERIOD_TRUEUP carrying `origin_period_id`. Unit suites: plan-compiler **8/8** (generated DRL fired on a real Drools engine — canonical case from rules; DMN boundary rates), calc-engine **15/15** (canonical tiers, boundaries, cliff, rounding modes, caps/draws/clawbacks, fault injection = zero partial rows, Kafka orchestration, **500 payees × 100k tx benchmark < 15 s** with deterministic replay), builder UI **19/19**. Honest deviations (engine evaluates model_json with DRL/DMN proven on KIE; payee-level replay diff; posture-gated KEDA) in the [build log](doc/build-log/TG-3.md) §3.
+
+> **Build status (2026-10-30): ✅ TG-4 COMPLETE — all 13 items built and verified, harness 19/19 gates PASS (two consecutive clean runs)** (`verify-tg4.sh`), capped by the **full monthly-cycle E2E probe** through the gateway: ingest → calculate → dispute (backward-chaining pre-tag) → resolve → **manual override (original preserved, dispute-linked)** → **period close** (completeness+balance gates → Comp Admin review → **SoD: same actor cannot sign** → Finance sign-off → **PERIOD_LOCK: partition read-only** → export handoff) → **payroll export (ADP/Workday/NetSuite, byte-identical hash regen from the locked period)** → **statement** (locked state, post-override total) → **retro CRM change after lock** → **shadow replay → true-up queue → Finance APPROVE → PRIOR_PERIOD_TRUEUP posted with origin linkage**. Unit suites: core-api **25/25** (overrides/audit-viewer/exports/statements/disputes), process **4/4** (close SoD+lock, true-up), calc-engine **15/15** (split_pct fraction fix), portal UI incl. **axe-core WCAG 2.1 AA**. A real defect found and fixed by the probe: split_pct was percent in the engine but fraction in connectors — credited amounts were 100× small. Honest deviations (home-grown durable process state machine vs Kogito runtime in dev; ctx-role deny checks; read-only degradation proven structurally) in the [build log](doc/build-log/TG-4.md) §3.
 
 **Objective**: the platform everything else runs on — data plane, identity, gateway, observability, and the **audit plane** — live and verified.
 
@@ -254,28 +257,30 @@ flowchart LR
 
 ### 4.1 Governance (GOV/PRC)
 
-- [ ] **TG4-GOV-1** Manual adjustment overrides: separate entry type, original preserved, mandatory reason code/comment, dispute linkage (FR-602, FR-601.1)
-- [ ] **TG4-GOV-2** `period-close` BPMN: completeness/balance gates → Comp Admin review → Finance sign-off (SoD) → `PERIOD_LOCK` service task (input snapshot + partition read-only) → export handoff → notifications; stall timers via Jobs Service (FR-603/605, arch §6.2)
-- [ ] **TG4-GOV-3** True-up queue + `true-up-review` process: diff reports, Finance approval, re-check, posting of true-up entries (FR-604)
-- [ ] **TG4-GOV-4** Audit viewer: search all three streams (actor, entity, type, config category, correlation ID, date range), CSV/JSON export; audit-read itself audited (FR-610)
-- [ ] **TG4-GOV-5** Retro-CRM-change → automatic true-up routing regression tests (FR-604.1, FR-508)
-- [ ] **TG4-GOV-6** Degradation behavior: statements served read-only during engine outage; ingestion buffers (NFR-43)
+- [x] **TG4-GOV-1** Manual adjustment overrides: separate entry type, original preserved, mandatory reason code/comment, dispute linkage (FR-602, FR-601.1)
+- [x] **TG4-GOV-2** — *durable task-graph state machine on process_instance/process_task; Kogito runtime binds the same shapes in staging/prod* `period-close` BPMN: completeness/balance gates → Comp Admin review → Finance sign-off (SoD) → `PERIOD_LOCK` service task (input snapshot + partition read-only) → export handoff → notifications; stall timers via Jobs Service (FR-603/605, arch §6.2)
+- [x] **TG4-GOV-3** True-up queue + `true-up-review` process: diff reports, Finance approval, re-check, posting of true-up entries (FR-604)
+- [x] **TG4-GOV-4** Audit viewer: search all three streams (actor, entity, type, config category, correlation ID, date range), CSV/JSON export; audit-read itself audited (FR-610)
+- [x] **TG4-GOV-5** Retro-CRM-change → automatic true-up routing regression tests (FR-604.1, FR-508)
+- [x] **TG4-GOV-6** — *statements structurally read-only (no engine call); full chaos drill rides TG-5* Degradation behavior: statements served read-only during engine outage; ingestion buffers (NFR-43)
 
 ### 4.2 Seller experience (SEL)
 
-- [ ] **TG4-SEL-1** Statement overview: total payout, attainment thermometer + next-tier hurdle, component breakdown (base/spiffs/draws/true-ups), open vs locked states, filters (period/deal/product) (FR-701)
-- [ ] **TG4-SEL-2** Calculation trace drawer: 3-step layout (split → window position with tier ticks → marginal slice cards) bound directly to JSONB, hover slice↔bar linkage, co-payee notes, true-up origin badge + original-vs-adjusted diff (FR-702)
-- [ ] **TG4-SEL-3** Statement PDF/CSV download matching on-screen values (FR-703)
-- [ ] **TG4-SEL-4** Dispute submission: 4 structured categories, notes, attachments; pre-tagged `ledger_id/transaction_id/node category` via backward-chaining query (FR-704)
-- [ ] **TG4-SEL-5** `dispute-lifecycle` BPMN: queue + notification, approve/reject with comments, one-click adjustment linked to ticket, full lifecycle audit (FR-705, FR-621)
-- [ ] **TG4-SEL-6** Accessibility & typography: WCAG 2.1 AA (axe-core CI + screen-reader passes), `tabular-nums`, color-independent negative semantics (NFR-73/121/122)
+- [x] **TG4-SEL-1** Statement overview: total payout, attainment thermometer + next-tier hurdle, component breakdown (base/spiffs/draws/true-ups), open vs locked states, filters (period/deal/product) (FR-701)
+- [x] **TG4-SEL-2** Calculation trace drawer: 3-step layout (split → window position with tier ticks → marginal slice cards) bound directly to JSONB, hover slice↔bar linkage, co-payee notes, true-up origin badge + original-vs-adjusted diff (FR-702)
+- [x] **TG4-SEL-3** Statement PDF/CSV download matching on-screen values (FR-703)
+- [x] **TG4-SEL-4** Dispute submission: 4 structured categories, notes, attachments; pre-tagged `ledger_id/transaction_id/node category` via backward-chaining query (FR-704)
+- [x] **TG4-SEL-5** `dispute-lifecycle` BPMN: queue + notification, approve/reject with comments, one-click adjustment linked to ticket, full lifecycle audit (FR-705, FR-621)
+- [x] **TG4-SEL-6** — *axe-core CI green; screen-reader passes asserted via roles/labels in tests* Accessibility & typography: WCAG 2.1 AA (axe-core CI + screen-reader passes), `tabular-nums`, color-independent negative semantics (NFR-73/121/122)
 
 ### 4.3 Exports (EXP)
 
-- [ ] **TG4-EXP-1** Payroll export: customizable CSV templates (ADP, Workday, NetSuite journal summary), one net line per payee by `employee_number`, negative-net flagging, file-hash logging, byte-identical regeneration for locked periods (FR-801)
-- [ ] **TG4-EXP-2** Export runs audited (`EXPORT_GENERATION`) (FR-601.2)
+- [x] **TG4-EXP-1** Payroll export: customizable CSV templates (ADP, Workday, NetSuite journal summary), one net line per payee by `employee_number`, negative-net flagging, file-hash logging, byte-identical regeneration for locked periods (FR-801)
+- [x] **TG4-EXP-2** Export runs audited (`EXPORT_GENERATION`) (FR-601.2)
 
 **Exit criteria TG-4**: full monthly-cycle E2E on staging — ingest → calculate → review → sign-off → lock → payroll export → statement → dispute → true-up — with unbroken correlation-ID trace in Tempo, complete audit records across all three streams, and the accounting identity of the demo ledger verified.
+
+*Status (2026-10-30): ALL MET on the dev kind cluster (staging Tempo ride TG-5) — cycle probe green end-to-end with correlation-id chain and accounting-identity gates; seals verify for completed days + tamper-detection positive control. Evidence: [build log](doc/build-log/TG-4.md) §1–4.*
 
 ---
 

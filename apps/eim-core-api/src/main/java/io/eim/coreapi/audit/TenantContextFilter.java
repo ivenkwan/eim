@@ -43,11 +43,19 @@ public class TenantContextFilter implements ContainerRequestFilter {
 
         TenantContext ctx;
         if ("header".equals(authMode)) {
+            // gateway-validated claims ride headers; @TestSecurity identities
+            // (and any OIDC fallback) still contribute their roles so role
+            // gates behave identically in both postures
+            java.util.Set<String> roles = new java.util.HashSet<>();
+            roles.addAll(identity.getRoles());
+            roles.addAll(java.util.Arrays.asList(
+                    orEmpty(request.getHeaderString("X-Roles")).split(",")));
+            roles.remove("");
             ctx = TenantContext.of(
                     request.getHeaderString("X-Tenant-Id"),
                     request.getHeaderString("X-Payee-Id"),
                     request.getHeaderString("X-Actor"),
-                    Set.of(orEmpty(request.getHeaderString("X-Roles")).split(",")),
+                    roles,
                     correlationId);
         } else {
             String tenant = claim(identity, "tenant_id");

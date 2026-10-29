@@ -120,8 +120,184 @@ paths:
       responses:
         '200':
           description: Drift lines
+  /api/v1/admin/overrides:
+    post:
+      operationId: createManualOverride
+      summary: Manual adjustment override (separate entry type, original preserved, mandatory reason)
+      x-audit:
+        action: MANUAL_ADJUSTMENT
+        stream: action
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OverrideRequest'
+      responses:
+        '202':
+          description: Override recorded
+        '400':
+          description: reasonCode/reasonComment missing
+        '409':
+          description: Period locked
+  /api/v1/admin/audit-viewer:
+    get:
+      operationId: searchAudit
+      summary: Audit viewer — search all three streams with CSV/JSON export (audit-read audited)
+      x-audit:
+        action: APPROVAL
+        stream: action
+      parameters:
+        - { name: stream, in: query, schema: { type: string } }
+        - { name: actor, in: query, schema: { type: string } }
+        - { name: entity, in: query, schema: { type: string } }
+        - { name: actionType, in: query, schema: { type: string } }
+        - { name: correlationId, in: query, schema: { type: string } }
+        - { name: from, in: query, schema: { type: string } }
+        - { name: to, in: query, schema: { type: string } }
+        - { name: format, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer } }
+      responses:
+        '200':
+          description: Rows (JSON) or CSV attachment
+  /api/v1/admin/exports:
+    post:
+      operationId: generatePayrollExport
+      summary: Payroll export (ADP/Workday/NetSuite templates, hashed, byte-identical regen)
+      x-audit:
+        action: EXPORT_GENERATION
+        stream: action
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+      responses:
+        '200':
+          description: CSV + file hash
+        '400':
+          description: Unknown template
+    get:
+      operationId: downloadPayrollExport
+      summary: Payroll export download (file stream)
+      x-audit:
+        action: EXPORT_GENERATION
+        stream: action
+      parameters:
+        - { name: periodId, in: query, required: true, schema: { type: string } }
+        - { name: template, in: query, required: true, schema: { type: string } }
+        - { name: format, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: CSV bytes or metadata
+  /api/v1/me/statement:
+    get:
+      operationId: getStatementOverview
+      summary: Seller statement overview (RLS-scoped; read-only during engine outage)
+      responses:
+        '200':
+          description: Overview with components + thermometer
+  /api/v1/me/statement/trace/{ledgerId}:
+    get:
+      operationId: getStatementTrace
+      summary: Calculation trace drawer payload (JSONB-bound)
+      parameters:
+        - name: ledgerId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Trace
+        '404':
+          description: Not found for this payee
+  /api/v1/me/statement/download:
+    get:
+      operationId: downloadStatement
+      summary: Statement CSV download matching on-screen values
+      responses:
+        '200':
+          description: CSV
+  /api/v1/disputes:
+    post:
+      operationId: submitDispute
+      summary: Dispute submission (4 structured categories, backward-chaining pre-tag)
+      x-audit:
+        action: DISPUTE_RESOLUTION
+        stream: action
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DisputeSubmission'
+      responses:
+        '202':
+          description: Created with pre-tagged category
+    get:
+      operationId: listDisputes
+      summary: Dispute queue (admin)
+      responses:
+        '200':
+          description: Open tickets
+  /api/v1/disputes/{disputeId}/resolve:
+    post:
+      operationId: resolveDispute
+      summary: Approve/reject with mandatory comment; full lifecycle audit
+      x-audit:
+        action: DISPUTE_RESOLUTION
+        stream: action
+      parameters:
+        - name: disputeId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DisputeResolution'
+      responses:
+        '202':
+          description: Resolved
+        '409':
+          description: Not open
 components:
   schemas:
+    OverrideRequest:
+      type: object
+      required: [payoutPeriodId, payeeId, componentName, adjustedAmount, reasonCode, reasonComment]
+      properties:
+        payoutPeriodId: { type: string }
+        payeeId: { type: string }
+        componentName: { type: string }
+        adjustedAmount: { type: string }
+        reasonCode: { type: string }
+        reasonComment: { type: string }
+        disputeId: { type: [string, 'null'] }
+    ExportRequest:
+      type: object
+      required: [periodId, template]
+      properties:
+        periodId: { type: string }
+        template: { type: string, enum: [ADP, WORKDAY, NETSUITE_JOURNAL] }
+    DisputeSubmission:
+      type: object
+      required: [category, notes]
+      properties:
+        category: { type: string, enum: [SOURCE_DATA, CREDIT_SPLIT, WINDOW_STATE, PLAN_LOGIC, OTHER] }
+        notes: { type: string }
+        ledgerId: { type: [string, 'null'] }
+        transactionId: { type: [string, 'null'] }
+        symptom: { type: [string, 'null'] }
+    DisputeResolution:
+      type: object
+      required: [resolution, comment]
+      properties:
+        resolution: { type: string, enum: [APPROVE, REJECT] }
+        comment: { type: string }
     HelloResponse:
       type: object
       required: [service, status, message]

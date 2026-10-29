@@ -358,7 +358,7 @@ public class WavefrontRunner {
         try (Connection c = ds.getConnection();
              PreparedStatement ps = c.prepareStatement(
                      "SELECT ca.payee_id, t.transaction_id, t.transaction_date, "
-                             + "t.created_at AS ts, t.booking_amount * ca.split_pct / 100 "
+                             + "t.created_at AS ts, t.booking_amount * ca.split_pct "
                              + "AS credited "
                              + "FROM raw_transaction t JOIN credit_allocation ca "
                              + "ON ca.transaction_id = t.transaction_id "

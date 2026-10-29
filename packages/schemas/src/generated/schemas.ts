@@ -202,8 +202,26 @@ export const ConfigChangeRequestSchema = z.strictObject({
   reason: z.string(),
 });
 
+export const DisputeResolutionSchema = z.strictObject({
+  comment: z.string(),
+  resolution: z.enum(['APPROVE', 'REJECT']),
+});
+
+export const DisputeSubmissionSchema = z.strictObject({
+  category: z.enum(['SOURCE_DATA', 'CREDIT_SPLIT', 'WINDOW_STATE', 'PLAN_LOGIC', 'OTHER']),
+  ledgerId: z.unknown().optional(),
+  notes: z.string(),
+  symptom: z.unknown().optional(),
+  transactionId: z.unknown().optional(),
+});
+
 export const ErrorResponseSchema = z.strictObject({
   error: z.string(),
+});
+
+export const ExportRequestSchema = z.strictObject({
+  periodId: z.string(),
+  template: z.enum(['ADP', 'WORKDAY', 'NETSUITE_JOURNAL']),
 });
 
 export const MePayeeResponseSchema = z.strictObject({
@@ -213,6 +231,16 @@ export const MePayeeResponseSchema = z.strictObject({
 
   }).optional(),
   tenant_id: z.string().optional(),
+});
+
+export const OverrideRequestSchema = z.strictObject({
+  adjustedAmount: z.string(),
+  componentName: z.string(),
+  disputeId: z.unknown().optional(),
+  payeeId: z.string(),
+  payoutPeriodId: z.string(),
+  reasonCode: z.string(),
+  reasonComment: z.string(),
 });
 
 export const PeriodLockRequestSchema = z.strictObject({
@@ -290,4 +318,14 @@ export const ValidationReportSchema = z.strictObject({
     problems: z.array(z.string()),
     topologicalOrder: z.array(z.string()),
   }),
+});
+
+export const PeriodCloseStartSchema = z.strictObject({
+  payoutPeriodId: z.string(),
+  tenantId: z.string(),
+});
+
+export const TrueupDecisionSchema = z.strictObject({
+  decision: z.enum(['APPROVE', 'REJECT']),
+  note: z.string(),
 });

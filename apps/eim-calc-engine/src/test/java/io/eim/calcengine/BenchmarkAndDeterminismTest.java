@@ -149,7 +149,7 @@ class BenchmarkAndDeterminismTest {
              PreparedStatement ca = c.prepareStatement(
                      "INSERT INTO credit_allocation (credit_allocation_id, tenant_id, "
                              + "transaction_id, payee_id, split_pct, effective_date) "
-                             + "VALUES (?,?,?,?,100,?)")) {
+                             + "VALUES (?,?,?,?,1,?)")) {
             int n = 0;
             for (int i = 0; i < PAYEES; i++) {
                 for (int j = 0; j < TXNS_PER; j++) {

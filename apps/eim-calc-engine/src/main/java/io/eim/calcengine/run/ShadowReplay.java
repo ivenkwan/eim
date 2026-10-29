@@ -49,8 +49,18 @@ public class ShadowReplay {
      * @param planVersionHash  the PINNED artifact version (replay never
      *                         uses a newer plan)
      */
+    /**
+     * @param enqueue route diffs into the true-up review queue (default) —
+     *                 Finance approval posts them; the legacy direct-post
+     *                 path remains for the engine's own regression tests.
+     */
     public ReplayResult replay(UUID tenantId, UUID lockedPeriodId, UUID openPeriodId,
                                String planVersionHash) throws Exception {
+        return replay(tenantId, lockedPeriodId, openPeriodId, planVersionHash, true);
+    }
+
+    public ReplayResult replay(UUID tenantId, UUID lockedPeriodId, UUID openPeriodId,
+                               String planVersionHash, boolean enqueue) throws Exception {
         EngineModel plan = runner.loadPlan(planVersionHash);
         WavefrontRunner.Period locked = period(lockedPeriodId);
         WavefrontRunner.Period open = period(openPeriodId);
@@ -86,9 +96,36 @@ public class ShadowReplay {
             }
         }
         if (!lines.isEmpty()) {
-            emitTrueup(tenantId, openPeriodId, planVersionHash, lines, open);
+            if (enqueue) {
+                enqueueForReview(tenantId, lockedPeriodId, openPeriodId, lines);
+            } else {
+                emitTrueup(tenantId, openPeriodId, planVersionHash, lines, open);
+            }
         }
         return new ReplayResult(lines.size(), lines);
+    }
+
+    /** Queue diffs for Finance review (FR-604.2) — posting is gated. */
+    private void enqueueForReview(UUID tenantId, UUID lockedPeriodId, UUID openPeriodId,
+                                  List<TrueupLine> lines) throws SQLException {
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement(
+                     "INSERT INTO trueup_review (trueup_id, tenant_id, origin_period_id, "
+                             + "open_period_id, payee_id, diff_amount, report) "
+                             + "VALUES (?,?,?,?,CAST(? AS uuid),?,CAST(? AS jsonb))")) {
+            for (TrueupLine l : lines) {
+                ps.setObject(1, UUID.randomUUID());
+                ps.setObject(2, tenantId);
+                ps.setObject(3, lockedPeriodId);
+                ps.setObject(4, openPeriodId);
+                ps.setObject(5, l.payeeId());
+                ps.setBigDecimal(6, l.delta());
+                ps.setString(7, "{\"origin_period_id\":\"" + l.originPeriodId()
+                        + "\",\"component\":\"" + l.component() + "\"}");
+                ps.addBatch();
+            }
+            ps.executeBatch();
+        }
     }
 
     private void emitTrueup(UUID tenantId, UUID openPeriodId, String hash,
@@ -150,7 +187,7 @@ public class ShadowReplay {
         try (Connection c = ds.getConnection();
              PreparedStatement ps = c.prepareStatement(
                      "SELECT ca.payee_id, t.transaction_id, t.transaction_date, t.created_at AS ts, "
-                             + "t.booking_amount * ca.split_pct / 100 AS credited "
+                             + "t.booking_amount * ca.split_pct AS credited "
                              + "FROM raw_transaction t "
                              + "JOIN credit_allocation ca ON ca.transaction_id = t.transaction_id "
                              + "WHERE t.tenant_id = ? AND t.transaction_date BETWEEN ? AND ? "

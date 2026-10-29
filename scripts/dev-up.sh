@@ -94,6 +94,7 @@ if [ "$DRY_RUN" -eq 0 ]; then
     --set "eim-keycloak.oidcClientSecret=$OIDC_SECRET" \
     --set "eim-apisix.oidcClientSecret=$OIDC_SECRET" \
     --set "eim-core-api.oidcClientSecret=$OIDC_SECRET" \
+    --set "eim-core-api.authMode=header" \
     --set "eim-postgres.backup.encryptionKey=$BACKUP_KEY" \
     --wait --timeout 10m
 fi

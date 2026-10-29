@@ -17,8 +17,91 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HelloResponse'
+  /api/v1/process/period-close/start:
+    post:
+      operationId: startPeriodClose
+      summary: period-close BPMN start (completeness + balance gates)
+      x-audit:
+        action: APPROVAL
+        stream: action
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PeriodCloseStart'
+      responses:
+        '202':
+          description: Process started
+        '409':
+          description: Gate failed
+  /api/v1/process/period-close/{processId}/tasks/{taskName}:
+    post:
+      operationId: completePeriodCloseTask
+      summary: Complete a period-close task (review / sign-off SoD / lock / export handoff)
+      x-audit:
+        action: APPROVAL
+        stream: action
+      parameters:
+        - { name: processId, in: path, required: true, schema: { type: string } }
+        - { name: taskName, in: path, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '202':
+          description: Task completed
+        '403':
+          description: SoD violation
+  /api/v1/process/period-close/stalled:
+    get:
+      operationId: stalledProcesses
+      summary: Stall detection (Jobs Service posture)
+      responses:
+        '200':
+          description: Stalled process ids
+  /api/v1/process/trueup:
+    get:
+      operationId: trueupQueue
+      summary: True-up review queue (diff reports)
+      responses:
+        '200':
+          description: Pending diffs
+  /api/v1/process/trueup/{trueupId}/decision:
+    post:
+      operationId: decideTrueup
+      summary: Finance approve/reject a true-up (posting gated on approval)
+      x-audit:
+        action: TRUEUP_POSTING
+        stream: action
+      parameters:
+        - { name: trueupId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrueupDecision'
+      responses:
+        '202':
+          description: Decision recorded
+        '409':
+          description: Already decided
 components:
   schemas:
+    PeriodCloseStart:
+      type: object
+      required: [tenantId, payoutPeriodId]
+      properties:
+        tenantId: { type: string }
+        payoutPeriodId: { type: string }
+    TrueupDecision:
+      type: object
+      required: [decision, note]
+      properties:
+        decision: { type: string, enum: [APPROVE, REJECT] }
+        note: { type: string }
     HelloResponse:
       type: object
       required: [service, status, message]

@@ -30,6 +30,11 @@ class GraphProjectionTest {
         try (Connection c = ds.getConnection();
              java.sql.Statement st = c.createStatement()) {
             st.execute("DELETE FROM commission_ledger_entry");
+            // TG-4 governance rows reference payout_period/payee — clear them
+            // first so the shared-DB clean-slate stays valid
+            st.execute("DELETE FROM trueup_review");
+            st.execute("DELETE FROM manual_override");
+            st.execute("DELETE FROM export_run");
             st.execute("DELETE FROM payout_period");
             st.execute("DELETE FROM plan_assignment");
             st.execute("DELETE FROM payee");
