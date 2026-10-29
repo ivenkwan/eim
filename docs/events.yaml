@@ -46,6 +46,14 @@ topics:
     producer: eim-process
     consumers: [eim-core-api]
     description: Dispute state transition (review/approve/reject/adjust)
+  - name: eim.config.changed
+    producer: eim-core-api (outbox exporter)
+    consumers: [eim-core-api (event auditor)]
+    description: Versioned configuration change published via the transactional outbox
+  - name: eim.config.changed.dlq
+    producer: eim-core-api
+    consumers: [ops]
+    description: Dead-letter queue for failed event-audit consumption
   - name: eim.audit.appended
     producer: audit-plane
     consumers: [siem-sink]

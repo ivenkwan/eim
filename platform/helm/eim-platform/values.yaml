@@ -44,11 +44,12 @@ eim-objectstore:
   enabled: true
   image: chrislusf/seaweedfs:3.80
 
-eim-apisix:
-  enabled: true
-  image: apache/apisix:3.11.0-debian
-
 eim-keycloak:
   enabled: true
   image: quay.io/keycloak/keycloak:26.0.7
-  # adminUsername / adminPassword: REQUIRED via --set (NFR-53)
+  # adminUsername / adminPassword / oidcClientSecret: REQUIRED via --set (NFR-53)
+
+eim-apisix:
+  enabled: true
+  image: apache/apisix:3.11.0-debian
+  # oidcClientSecret: REQUIRED via --set (NFR-53)

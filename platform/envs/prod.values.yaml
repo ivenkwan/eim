@@ -5,12 +5,15 @@ global:
   databasePassword: REPLACE_VIA_SECRET_STORE
   kafkaBootstrapServers: REPLACE_EXTERNAL_KAFKA_BOOTSTRAP
 eim-postgres:
+  backup:
+    encryptionKey: lint-placeholder
   enabled: false
 eim-kafka:
   enabled: false
 eim-objectstore:
   enabled: false
 eim-keycloak:
+  oidcClientSecret: lint-placeholder
   adminUsername: admin
   adminPassword: REPLACE_VIA_SECRET_STORE
 eim-web:
@@ -19,3 +22,7 @@ eim-core-api:
   replicas: 3
 eim-calc-engine:
   replicas: 3
+eim-apisix:
+  oidcClientSecret: lint-placeholder
+eim-core-api:
+  oidcClientSecret: lint-placeholder

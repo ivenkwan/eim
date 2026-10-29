@@ -1,0 +1,85 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eim-keycloak-realm
+  labels: { app: eim-keycloak }
+data:
+  eim-realm.json: |
+    {
+      "realm": "eim",
+      "enabled": true,
+      "registrationAllowed": false,
+      "loginWithEmailAllowed": true,
+      "roles": {
+        "realm": [
+          { "name": "comp_admin", "description": "Comp Admin (RevOps) — plans, disputes" },
+          { "name": "finance_approver", "description": "Finance Approver/Controller — PERIOD_LOCK exclusive (SoD)" },
+          { "name": "payee", "description": "Seller — own statements only" },
+          { "name": "manager", "description": "Manager — downline visibility" },
+          { "name": "system_admin", "description": "System Admin — infrastructure + break-glass support" },
+          { "name": "revenue_accountant", "description": "Revenue Accountant (Phase 2)" }
+        ]
+      },
+      "clients": [
+        {
+          "clientId": "eim-gateway",
+          "enabled": true,
+          "publicClient": false,
+          "secret": {{ .Values.oidcClientSecret | required "eim-keycloak.oidcClientSecret is required (NFR-53)" | quote }},
+          "standardFlowEnabled": false,
+          "directAccessGrantsEnabled": true,
+          "serviceAccountsEnabled": false,
+          "protocol": "openid-connect",
+          "redirectUris": ["/*"],
+          "webOrigins": ["/*"],
+          "attributes": { "post.logout.redirect.uris": "/*" }
+        },
+        {
+          "clientId": "eim-web",
+          "enabled": true,
+          "publicClient": true,
+          "standardFlowEnabled": true,
+          "directAccessGrantsEnabled": false,
+          "protocol": "openid-connect",
+          "redirectUris": ["http://localhost:5173/*", "http://eim-web/*"],
+          "webOrigins": ["*"]
+        }
+      ],
+      "clientScopes": [
+        {
+          "name": "eim_identity",
+          "protocol": "openid-connect",
+          "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "false" },
+          "protocolMappers": [
+            {
+              "name": "tenant_id",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-usermodel-attribute-mapper",
+              "consentRequired": false,
+              "config": {
+                "user.attribute": "tenant_id",
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "jsonType.label": "String",
+                "introspection.token.claim": "true"
+              }
+            },
+            {
+              "name": "payee_id",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-usermodel-attribute-mapper",
+              "consentRequired": false,
+              "config": {
+                "user.attribute": "payee_id",
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "jsonType.label": "String",
+                "introspection.token.claim": "true"
+              }
+            }
+          ]
+        }
+      ],
+      "defaultDefaultClientScopes": ["profile", "email", "roles", "web-origins", "acr", "basic", "eim_identity"],
+      "users": []
+    }

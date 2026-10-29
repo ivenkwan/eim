@@ -1,0 +1,55 @@
+# TG1-SEC-6 / NFR-51: default-deny ingress to apps except via the gateway.
+# (mTLS posture between services is documented in the architecture; on the
+# dev cluster the NetworkPolicy is the enforceable control.)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: eim-core-api-ingress
+  labels: { app: eim-core-api }
+spec:
+  podSelector:
+    matchLabels: { app: eim-core-api }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: { app: eim-apisix }
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: eim-postgres-ingress
+  labels: { app: eim-postgres }
+spec:
+  podSelector:
+    matchLabels: { app: eim-postgres }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values: [eim-core-api, eim-connectors, eim-calc-engine, eim-process, eim-plan-compiler, eim-backup]
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: eim-keycloak-ingress
+  labels: { app: eim-keycloak }
+spec:
+  podSelector:
+    matchLabels: { app: eim-keycloak }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8080

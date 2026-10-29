@@ -14,14 +14,14 @@ spec:
       containers:
         - name: keycloak
           image: {{ .Values.image }}
-          args: ["start-dev", "--http-enabled=true", "--http-port=8080"]
+          args: ["start-dev", "--http-enabled=true", "--http-port=8080", "--import-realm"]
           env:
-            - name: KC_BOOTSTRAP_ADMIN_USERNAME
-              value: {{ required "eim-keycloak.adminUsername is required (NFR-53)" .Values.adminUsername | quote }}
-            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
-              value: {{ required "eim-keycloak.adminPassword is required (NFR-53)" .Values.adminPassword | quote }}
             - name: KC_HEALTH_ENABLED
               value: "true"
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
+              valueFrom: { secretKeyRef: { name: eim-keycloak-admin, key: username } }
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+              valueFrom: { secretKeyRef: { name: eim-keycloak-admin, key: password } }
           ports:
             - name: http
               containerPort: 8080
@@ -29,3 +29,11 @@ spec:
             httpGet: { path: /realms/master, port: http }
             initialDelaySeconds: 15
             periodSeconds: 10
+          volumeMounts:
+            - name: realm
+              mountPath: /opt/keycloak/data/import
+              readOnly: true
+      volumes:
+        - name: realm
+          configMap:
+            name: eim-keycloak-realm

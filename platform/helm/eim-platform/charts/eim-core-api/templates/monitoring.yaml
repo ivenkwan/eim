@@ -1,0 +1,60 @@
+{{- if .Values.serviceMonitor | default false }}
+# TG1-OPS-3/4: scrape + alert rules. ServiceMonitor works when the
+# kube-prometheus-stack operator is installed (see platform/observability);
+# on clusters without it, the annotations below let any Prometheus discover
+# the metrics endpoint.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: eim-core-api
+  labels: { app: eim-core-api, release: eim-observability }
+spec:
+  selector:
+    matchLabels: { app: eim-core-api }
+  endpoints:
+    - port: http
+      path: /q/metrics
+      interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: eim-platform-rules
+  labels: { release: eim-observability }
+spec:
+  groups:
+    - name: eim.audit
+      rules:
+        - alert: EimAuditReconciliationGap
+          expr: eim_audit_reconcile_gap != 0
+          for: 2m
+          labels: { severity: critical }
+          annotations:
+            summary: "Audit reconciliation gap (NFR-64)"
+            description: "Audited mutations exceed published event-audit rows for >2m."
+            runbook_url: https://github.com/ivenkwan/eim/blob/main/docs/runbooks/audit-reconciliation-gap.md
+        - alert: EimGraphDrift
+          expr: eim_graph_drift > 0
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: "AGE graph drift (NFR-93)"
+            runbook_url: https://github.com/ivenkwan/eim/blob/main/docs/runbooks/graph-drift.md
+    - name: eim.platform
+      rules:
+        - alert: EimCoreApiDown
+          expr: kube_pod_status_phase{pod=~"eim-core-api.*",phase="Running"} == 0
+          for: 2m
+          labels: { severity: critical }
+          annotations:
+            summary: "eim-core-api not Running"
+            runbook_url: https://github.com/ivenkwan/eim/blob/main/docs/runbooks/service-down.md
+        - alert: EimPostgresDown
+          expr: kube_pod_status_phase{pod=~"eim-postgres.*",phase="Running"} == 0
+          for: 1m
+          labels: { severity: critical }
+          annotations:
+            summary: "PostgreSQL+AGE not Running"
+            runbook_url: https://github.com/ivenkwan/eim/blob/main/docs/runbooks/postgres-down.md
+
+{{- end }}

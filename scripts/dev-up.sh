@@ -45,10 +45,14 @@ else
   PG_PASS="$(openssl rand -hex 16)"
   KC_USER="admin"
   KC_PASS="$(openssl rand -hex 16)"
+  OIDC_SECRET="$(openssl rand -hex 24)"
+  BACKUP_KEY="$(openssl rand -hex 32)"
   {
     echo "EIM_DEV_POSTGRES_PASSWORD=$PG_PASS"
     echo "EIM_DEV_KEYCLOAK_ADMIN_USERNAME=$KC_USER"
     echo "EIM_DEV_KEYCLOAK_ADMIN_PASSWORD=$KC_PASS"
+    echo "EIM_DEV_OIDC_CLIENT_SECRET=$OIDC_SECRET"
+    echo "EIM_DEV_BACKUP_ENCRYPTION_KEY=$BACKUP_KEY"
   } > "$SECRETS_FILE"
   chmod 600 "$SECRETS_FILE"
   echo "[dev-up] credentials written to $SECRETS_FILE (gitignored)"
@@ -87,6 +91,10 @@ if [ "$DRY_RUN" -eq 0 ]; then
     --set "eim-postgres.auth.password=$PG_PASS" \
     --set "eim-keycloak.adminUsername=$KC_USER" \
     --set "eim-keycloak.adminPassword=$KC_PASS" \
+    --set "eim-keycloak.oidcClientSecret=$OIDC_SECRET" \
+    --set "eim-apisix.oidcClientSecret=$OIDC_SECRET" \
+    --set "eim-core-api.oidcClientSecret=$OIDC_SECRET" \
+    --set "eim-postgres.backup.encryptionKey=$BACKUP_KEY" \
     --wait --timeout 10m
 fi
 

@@ -4,6 +4,7 @@ global:
 eim-web:
   replicas: 2
 eim-core-api:
+  serviceMonitor: true  # staging+ run the kube-prometheus-stack operator
   replicas: 2
 eim-connectors:
   replicas: 2
@@ -14,9 +15,17 @@ eim-process:
 eim-plan-compiler:
   replicas: 2
 eim-postgres:
+  backup:
+    encryptionKey: lint-placeholder
   auth:
     password: REPLACE_VIA_SECRET_STORE
 eim-objectstore:
 eim-keycloak:
+  oidcClientSecret: lint-placeholder
   adminUsername: admin
   adminPassword: REPLACE_VIA_SECRET_STORE
+eim-apisix:
+  oidcClientSecret: lint-placeholder
+eim-core-api:
+  serviceMonitor: true  # staging+ run the kube-prometheus-stack operator
+  oidcClientSecret: lint-placeholder

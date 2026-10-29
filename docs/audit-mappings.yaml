@@ -39,6 +39,12 @@ events:
   eim.dispute.updated:
     stream: event
     action: DISPUTE_RESOLUTION
+  eim.config.changed:
+    stream: event
+    action: CONFIG_CHANGE
+  eim.config.changed.dlq:
+    stream: event
+    action: CONFIG_CHANGE
   eim.audit.appended:
     stream: event
     action: DATA_OVERRIDE

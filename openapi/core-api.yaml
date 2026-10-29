@@ -43,6 +43,83 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/me/payee:
+    get:
+      operationId: getMyPayee
+      summary: RLS-protected seller view (exit criterion TG-1 #1)
+      responses:
+        '200':
+          description: Caller identity + RLS-scoped payee record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MePayeeResponse'
+  /api/v1/admin/periods/{periodKey}/lock:
+    post:
+      operationId: lockPayoutPeriod
+      summary: Lock a payout period (SoD — finance_approver only, FR-603)
+      x-audit:
+        action: PERIOD_LOCK
+        stream: action
+      parameters:
+        - name: periodKey
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PeriodLockRequest'
+      responses:
+        '200':
+          description: Period locked
+        '403':
+          description: Role not permitted (SoD)
+        '404':
+          description: Unknown period
+  /api/v1/admin/config-change/{configurationId}/approve:
+    post:
+      operationId: approveConfigChange
+      summary: Approve a governed configuration change (FR-613.2)
+      x-audit:
+        action: APPROVAL
+        stream: action
+      parameters:
+        - name: configurationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Approved
+        '403':
+          description: Role not permitted
+        '404':
+          description: Unknown configuration
+  /api/v1/admin/audit/reconcile:
+    get:
+      operationId: auditReconcile
+      summary: AUD-9 evidence (mutation/outbox/event counts + gap)
+      responses:
+        '200':
+          description: Reconciliation window counts
+  /api/v1/admin/audit/seals/verify:
+    get:
+      operationId: auditSealVerify
+      summary: AUD-6 seal verification (recompute hash chain)
+      responses:
+        '200':
+          description: Per-day verification results
+  /api/v1/admin/audit/graph/reconcile:
+    get:
+      operationId: auditGraphReconcile
+      summary: DAT-4 graph drift check (empty = clean)
+      responses:
+        '200':
+          description: Drift lines
 components:
   schemas:
     HelloResponse:
@@ -73,6 +150,23 @@ components:
         accepted:
           type: boolean
         requestId:
+          type: string
+    MePayeeResponse:
+      type: object
+      properties:
+        actor:
+          type: string
+        correlation_id:
+          type: string
+        tenant_id:
+          type: string
+        payee:
+          type: object
+    PeriodLockRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason:
           type: string
     ErrorResponse:
       type: object

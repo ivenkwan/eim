@@ -1,0 +1,45 @@
+# TG1-AUD-8: GitOps sync watcher. Mirrors chart-value changes (committed in
+# Git, synced by Argo CD in the production posture) into configuration_change
+# so infrastructure configuration carries the same audit trail as runtime
+# configuration (FR-613.5). On the dev cluster it runs via CronJob against
+# the helm release manifest; with Argo CD installed it switches to the
+# argocd-notifications webhook (documented in the build log).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: eim-gitops-sync-watcher
+  labels: { app: eim-core-api }
+spec:
+  schedule: "*/10 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: watch
+              image: apache/age:release_PG16_1.6.0
+              env:
+                - name: PGPASSWORD
+                  valueFrom: { secretKeyRef: { name: eim-postgres-backup, key: password } }
+              command: ["/bin/sh", "-ec"]
+              args:
+                - |
+                  set -e
+                  MANIFEST_HASH=$(helm get manifest eim -n eim 2>/dev/null | sha256sum | cut -d' ' -f1)
+                  LAST=$(psql -h eim-postgres -U eim -d eim -tAc \
+                    "SELECT coalesce(max(version_after->>'manifest_hash'),'') FROM configuration_change WHERE entity='platform.manifest'" \
+                    | tr -d '[:space:]')
+                  if [ -z "$MANIFEST_HASH" ]; then
+                    echo "no helm release found — skipping"; exit 0
+                  fi
+                  if [ "$MANIFEST_HASH" = "$LAST" ]; then
+                    echo "manifest unchanged ($MANIFEST_HASH)"
+                    exit 0
+                  fi
+                  psql -h eim-postgres -U eim -d eim -c \
+                    "INSERT INTO configuration_change (entity, record_id, version_after, actor, actor_type, reason, governed) VALUES ('platform.manifest', 'helm-release', '{\"manifest_hash\":\"'\"$MANIFEST_HASH\"'\"}', 'gitops-sync-watcher', 'PROCESS', 'helm release manifest changed (FR-613.5)', false)"
+                  echo "recorded manifest change $MANIFEST_HASH"

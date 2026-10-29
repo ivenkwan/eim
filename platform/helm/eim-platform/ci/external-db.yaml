@@ -6,8 +6,15 @@ global:
   databaseUser: eim
   databasePassword: lint-placeholder
 eim-postgres:
+  backup:
+    encryptionKey: lint-placeholder
   enabled: false
 eim-objectstore:
 eim-keycloak:
+  oidcClientSecret: lint-placeholder
   adminUsername: lint-admin
   adminPassword: lint-placeholder
+eim-apisix:
+  oidcClientSecret: lint-placeholder
+eim-core-api:
+  oidcClientSecret: lint-placeholder

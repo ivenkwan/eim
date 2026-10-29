@@ -1,0 +1,47 @@
+# TG1-INF-1: nightly encrypted logical backup of PostgreSQL to the
+# S3-compatible objectstore (WAL archiving posture documented in the build
+# log; pg_dump is the TG-1 deliverable, continuous WAL ships with the
+# production CNPG posture). AES-256-CBC, key from the secret store (NFR-53).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: eim-postgres-backup
+  labels: { app: eim-postgres }
+spec:
+  schedule: "17 18 * * *" # 02:17 UTC+8 nightly, off the zero minute
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: {{ .Values.image }}
+              env:
+                - name: PGPASSWORD
+                  valueFrom: { secretKeyRef: { name: eim-postgres-backup, key: password } }
+                - name: BACKUP_KEY
+                  valueFrom: { secretKeyRef: { name: eim-postgres-backup, key: encryption-key } }
+                - name: S3_ENDPOINT
+                  value: http://eim-objectstore:9000
+              command: ["/bin/sh", "-ec"]
+              args:
+                - |
+                  set -e
+                  STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+                  FILE="eim-snapshots/pg-${STAMP}.sql.gz.enc"
+                  pg_dump -h eim-postgres -U eim -d eim -Z6 \
+                    | openssl enc -aes-256-cbc -pbkdf2 -pass env:BACKUP_KEY \
+                    > "/tmp/backup.enc"
+                  SIZE=$(stat -c%s /tmp/backup.enc)
+                  # SeaweedFS S3 accepts anonymous writes in the dev posture;
+                  # production substitutes signed uploads via the same layout.
+                  HTTP=$(curl -s -o /dev/null -w '%{http_code}' -X PUT \
+                    --data-binary @/tmp/backup.enc \
+                    "${S3_ENDPOINT}/${FILE}")
+                  echo "backup ${FILE} (${SIZE} bytes) -> HTTP ${HTTP}"
+                  test "$HTTP" = "200" || test "$HTTP" = "201"

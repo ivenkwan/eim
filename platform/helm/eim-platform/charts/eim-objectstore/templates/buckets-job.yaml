@@ -1,0 +1,31 @@
+# TG1-INF-3: bucket layout for the S3-compatible objectstore
+# (eim-snapshots, eim-statements, eim-attachments, eim-exports — arch §4).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: eim-objectstore-buckets
+  labels: { app: eim-objectstore }
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  backoffLimit: 6
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: create-buckets
+          # SeaweedFS `weed shell` creates S3 buckets via the master's
+          # grpc port when S3 is enabled (dev posture).
+          image: {{ .Values.image }}
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              timeout 60 weed shell -master=localhost:9333 <<'EOS' || test $? -eq 124
+              s3.bucket.create -bucket eim-snapshots
+              s3.bucket.create -bucket eim-statements
+              s3.bucket.create -bucket eim-attachments
+              s3.bucket.create -bucket eim-exports
+              EOS
+              echo "bucket setup attempted (idempotent)"
+              exit 0

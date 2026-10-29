@@ -33,3 +33,16 @@ export const ConfigChangeRequestSchema = z.strictObject({
 export const ErrorResponseSchema = z.strictObject({
   error: z.string(),
 });
+
+export const MePayeeResponseSchema = z.strictObject({
+  actor: z.string().optional(),
+  correlation_id: z.string().optional(),
+  payee: z.strictObject({
+
+  }).optional(),
+  tenant_id: z.string().optional(),
+});
+
+export const PeriodLockRequestSchema = z.strictObject({
+  reason: z.string(),
+});

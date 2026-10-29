@@ -6,9 +6,16 @@ global:
 eim-kafka:
   enabled: false
 eim-postgres:
+  backup:
+    encryptionKey: lint-placeholder
   auth:
     password: lint-placeholder
 eim-objectstore:
 eim-keycloak:
+  oidcClientSecret: lint-placeholder
   adminUsername: lint-admin
   adminPassword: lint-placeholder
+eim-apisix:
+  oidcClientSecret: lint-placeholder
+eim-core-api:
+  oidcClientSecret: lint-placeholder

@@ -10,7 +10,44 @@ data:
   # sync watcher (FR-613.5).
   apisix.yaml: |
     routes:
-      - uri: /api/v1/*
+      # Seller/admin API: OIDC bearer validation at the edge (SEC-2, NFR-51);
+      # core-api re-validates and maps claims (defense in depth, SEC-3).
+      - uri: /api/v1/me/*
+        upstream:
+          type: roundrobin
+          nodes:
+            "eim-core-api:8080": 1
+        plugins:
+          proxy-rewrite:
+            headers:
+              set:
+                X-Auth-Token: $http_authorization
+          openid-connect:
+            client_id: eim-gateway
+            client_secret: {{ .Values.oidcClientSecret | required "eim-apisix.oidcClientSecret is required (NFR-53)" | quote }}
+            discovery: http://eim-keycloak:8080/realms/eim/.well-known/openid-configuration
+            bearer_only: true
+            ssl_verify: false
+            access_token_in_authorization_header: true
+      - uri: /api/v1/admin/*
+        upstream:
+          type: roundrobin
+          nodes:
+            "eim-core-api:8080": 1
+        plugins:
+          proxy-rewrite:
+            headers:
+              set:
+                X-Auth-Token: $http_authorization
+          openid-connect:
+            client_id: eim-gateway
+            client_secret: {{ .Values.oidcClientSecret | required "eim-apisix.oidcClientSecret is required (NFR-53)" | quote }}
+            discovery: http://eim-keycloak:8080/realms/eim/.well-known/openid-configuration
+            bearer_only: true
+            ssl_verify: false
+            access_token_in_authorization_header: true
+      # Health/hello stays open for probes (read-only, no data).
+      - uri: /api/v1/hello
         upstream:
           type: roundrobin
           nodes:

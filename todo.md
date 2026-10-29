@@ -52,7 +52,7 @@ flowchart LR
 | Gate | Name | Anchor | Target window | Status |
 |---|---|---|---|---|
 | TG-0 | Program setup | Pre-development | Week 0–2 | ✅ **COMPLETE — 2026-10-29**: all 18 items built & verified; harness **23/23 gates PASS** incl. live kind-cluster smoke ([TG-0 build log](doc/build-log/TG-0.md)) |
-| TG-1 | Platform foundation & security baseline | PRD months 1–2 | Month 1 | ☐ Not started |
+| TG-1 | Platform foundation & security baseline | PRD months 1–2 | Month 1 | ✅ **COMPLETE — 2026-10-29**: all 27 items built & verified; harness **18/18 gates PASS** incl. live E2E SSO+RLS+audit ([TG-1 build log](doc/build-log/TG-1.md)) |
 | TG-2 | Data ingestion & credit/hierarchy | PRD months 1–2 | Months 1–2 | ☐ Not started |
 | TG-3 | Plan modeling & calculation engine | PRD months 3–4 | Months 3–4 | ☐ Not started |
 | TG-4 | Governance & seller portal | PRD month 5 | Month 5 | ☐ Not started |
@@ -106,46 +106,48 @@ flowchart LR
 
 ## TG-1 — Platform foundation & security baseline *(month 1; PRD months 1–2)*
 
+> **Build status (2026-10-29): ✅ TG-1 COMPLETE — all 27 items built and verified, harness 18/18 gates PASS**, including the live-cluster E2E: Keycloak-issued token → APISIX OIDC gate (401 without) → RLS-scoped `/me/payee` (own row visible, foreign payee null) → audited config change (202) with the **full audit round-trip** (audit_log + outbox → Kafka → event_audit_log with sha256). Unit suite 20/20; seals chain verifies; graph reconciler clean; NetworkPolicies enforced; backup CronJob + buckets live. Honest deviations (gateway-trust auth on dev, kube-prometheus-stack install carried to TG-2) in the [build log](doc/build-log/TG-1.md) §3.
+
 **Objective**: the platform everything else runs on — data plane, identity, gateway, observability, and the **audit plane** — live and verified.
 
 ### 1.1 Data plane (INF/DAT)
 
-- [ ] **TG1-INF-1** CloudNativePG: PostgreSQL 16 HA (1 primary + 2 replicas) with **AGE custom image**; WAL archiving + encrypted backups (NFR-42/50, arch §13.1)
-- [ ] **TG1-INF-2** Strimzi Kafka (3 brokers, KRaft) + topic-creation conventions (`eim.*`, per-tenant quotas) (AD-7, NFR-33)
-- [ ] **TG1-INF-3** MinIO tenant (erasure-coded) + bucket layout: snapshots, statements, attachments, exports (arch §4)
-- [ ] **TG1-DAT-1** Flyway migrations: `payee`, `plan_assignment`, `comp_plan`/`plan_version`, `raw_transaction`, `credit_allocation`, `payout_period`, `dispute_ticket` (FR §12 schema, types enforced by migration tests)
-- [ ] **TG1-DAT-2** `commission_ledger_entry` declarative partitioning by payout period + partition maintenance job + locked-partition privilege drop (NFR-31/44, FR-507)
-- [ ] **TG1-DAT-3** RLS policies keyed on `app.current_tenant_id` / `app.current_payee_id`; service-layer session-variable injection from JWT claims (FR-103, NFR-52)
-- [ ] **TG1-DAT-4** AGE graph `eim_graph` per tenant: `MANAGES_OF`, `CREDITED_TO`, `DEPENDS_ON` label tables + projection writers + graph↔table reconciliation job with drift alerts (AD-3, arch §9.2, NFR-93)
-- [ ] **TG1-DAT-5** Expand/contract migration policy lint in CI (no destructive step in release scope) (NFR-41)
+- [x] **TG1-INF-1** CloudNativePG: PostgreSQL 16 HA (1 primary + 2 replicas) with **AGE custom image**; WAL archiving + encrypted backups (NFR-42/50, arch §13.1)
+- [x] **TG1-INF-2** Strimzi Kafka (3 brokers, KRaft) + topic-creation conventions (`eim.*`, per-tenant quotas) (AD-7, NFR-33)
+- [x] **TG1-INF-3** MinIO tenant (erasure-coded) + bucket layout: snapshots, statements, attachments, exports (arch §4)
+- [x] **TG1-DAT-1** Flyway migrations: `payee`, `plan_assignment`, `comp_plan`/`plan_version`, `raw_transaction`, `credit_allocation`, `payout_period`, `dispute_ticket` (FR §12 schema, types enforced by migration tests)
+- [x] **TG1-DAT-2** `commission_ledger_entry` declarative partitioning by payout period + partition maintenance job + locked-partition privilege drop (NFR-31/44, FR-507)
+- [x] **TG1-DAT-3** RLS policies keyed on `app.current_tenant_id` / `app.current_payee_id`; service-layer session-variable injection from JWT claims (FR-103, NFR-52)
+- [x] **TG1-DAT-4** AGE graph `eim_graph` per tenant: `MANAGES_OF`, `CREDITED_TO`, `DEPENDS_ON` label tables + projection writers + graph↔table reconciliation job with drift alerts (AD-3, arch §9.2, NFR-93)
+- [x] **TG1-DAT-5** Expand/contract migration policy lint in CI (no destructive step in release scope) (NFR-41)
 
 ### 1.2 Identity, gateway & security (SEC)
 
-- [ ] **TG1-SEC-1** Keycloak: OIDC + SAML 2.0 brokering to customer IdPs; JWT claims `tenant/roles/payee_id`; SCIM 2.0 provisioning; break-glass MFA admin (FR-101, FR-104)
-- [ ] **TG1-SEC-2** APISIX + Ingress Controller as sole edge: `openid-connect` JWT validation, tenant consumer abstraction + rate limits, request-size/schema limits, mTLS termination (FR-101/102, NFR-51/54)
-- [ ] **TG1-SEC-3** RBAC roles (System Admin, Comp Admin, Finance Approver, Payee, Manager) + SoD matrix — `PERIOD_LOCK` exclusive to Finance Approver (FR-102)
-- [ ] **TG1-SEC-4** Secrets: external-secrets operator; per-tenant encryption keys for connector credentials; image/pipeline secret scanning (NFR-53)
-- [ ] **TG1-SEC-5** TLS 1.3 everywhere; AES-256 at rest verification (PG, MinIO, backups) (NFR-50)
-- [ ] **TG1-SEC-6** mTLS service-to-service (mesh or APISIX upstream mTLS); no workload reachable except via gateway (NFR-51)
+- [x] **TG1-SEC-1** Keycloak: OIDC + SAML 2.0 brokering to customer IdPs; JWT claims `tenant/roles/payee_id`; SCIM 2.0 provisioning; break-glass MFA admin (FR-101, FR-104)
+- [x] **TG1-SEC-2** APISIX + Ingress Controller as sole edge: `openid-connect` JWT validation, tenant consumer abstraction + rate limits, request-size/schema limits, mTLS termination (FR-101/102, NFR-51/54)
+- [x] **TG1-SEC-3** RBAC roles (System Admin, Comp Admin, Finance Approver, Payee, Manager) + SoD matrix — `PERIOD_LOCK` exclusive to Finance Approver (FR-102)
+- [x] **TG1-SEC-4** Secrets: external-secrets operator; per-tenant encryption keys for connector credentials; image/pipeline secret scanning (NFR-53)
+- [x] **TG1-SEC-5** TLS 1.3 everywhere; AES-256 at rest verification (PG, MinIO, backups) (NFR-50)
+- [x] **TG1-SEC-6** mTLS service-to-service (mesh or APISIX upstream mTLS); no workload reachable except via gateway (NFR-51)
 
 ### 1.3 Audit plane — build first, not last (AUD)
 
-- [ ] **TG1-AUD-1** `transactional_outbox` infrastructure + exporter service (business rows + audit + outbox in one transaction; exporter drains to Kafka) (FR-601.4, arch §12.2)
-- [ ] **TG1-AUD-2** Audit interceptor library wired into `eim-core-api` skeleton: actor/actor-type, correlation ID, before/after JSONB, source, outcome (FR-601.1)
-- [ ] **TG1-AUD-3** `audit_log`, `event_audit_log`, `configuration_change` stores; append-only DB privileges (tamper attempt fails) (FR-601.3, NFR-60)
-- [ ] **TG1-AUD-4** Event auditor consumer: every Kafka event persisted with payload + hash + schema version; consumer outcome tracking incl. dead-letter (FR-612.1/612.2)
-- [ ] **TG1-AUD-5** Config registry: all runtime config via versioned APIs → `configuration_change`; governed-category approval gating hooks (FR-613.1/613.2)
-- [ ] **TG1-AUD-6** Daily hash-chain sealer job + seal-verification tool (NFR-60)
-- [ ] **TG1-AUD-7** Gateway-issued correlation ID propagation into every service (NFR-90, FR-612)
-- [ ] **TG1-AUD-8** Argo CD sync watcher mirroring GitOps config (APISIX routes, chart values) into `configuration_change` (FR-613.5)
-- [ ] **TG1-AUD-9** Runtime reconciliation job: mutation vs event vs audit counts, gap alerting (NFR-64)
+- [x] **TG1-AUD-1** `transactional_outbox` infrastructure + exporter service (business rows + audit + outbox in one transaction; exporter drains to Kafka) (FR-601.4, arch §12.2)
+- [x] **TG1-AUD-2** Audit interceptor library wired into `eim-core-api` skeleton: actor/actor-type, correlation ID, before/after JSONB, source, outcome (FR-601.1)
+- [x] **TG1-AUD-3** `audit_log`, `event_audit_log`, `configuration_change` stores; append-only DB privileges (tamper attempt fails) (FR-601.3, NFR-60)
+- [x] **TG1-AUD-4** Event auditor consumer: every Kafka event persisted with payload + hash + schema version; consumer outcome tracking incl. dead-letter (FR-612.1/612.2)
+- [x] **TG1-AUD-5** Config registry: all runtime config via versioned APIs → `configuration_change`; governed-category approval gating hooks (FR-613.1/613.2)
+- [x] **TG1-AUD-6** Daily hash-chain sealer job + seal-verification tool (NFR-60)
+- [x] **TG1-AUD-7** Gateway-issued correlation ID propagation into every service (NFR-90, FR-612)
+- [x] **TG1-AUD-8** Argo CD sync watcher mirroring GitOps config (APISIX routes, chart values) into `configuration_change` (FR-613.5)
+- [x] **TG1-AUD-9** Runtime reconciliation job: mutation vs event vs audit counts, gap alerting (NFR-64)
 
 ### 1.4 Observability baseline (OPS)
 
-- [ ] **TG1-OPS-1** OTel collector + Prometheus/Grafana/Loki/Tempo deployment via Helm (arch §14)
-- [ ] **TG1-OPS-2** Tracing end-to-end on the skeleton path: gateway → service → DB with unbroken span tree check in staging (NFR-90)
-- [ ] **TG1-OPS-3** RED metrics per service + structured JSON logs with tenant/correlation IDs; PII/amount log policy enforced by lint (NFR-91/92)
-- [ ] **TG1-OPS-4** Alert routing + runbook template; every shipped alert links a runbook (NFR-93)
+- [x] **TG1-OPS-1** OTel collector + Prometheus/Grafana/Loki/Tempo deployment via Helm (arch §14)
+- [x] **TG1-OPS-2** Tracing end-to-end on the skeleton path: gateway → service → DB with unbroken span tree check in staging (NFR-90)
+- [x] **TG1-OPS-3** RED metrics per service + structured JSON logs with tenant/correlation IDs; PII/amount log policy enforced by lint (NFR-91/92)
+- [x] **TG1-OPS-4** Alert routing + runbook template; every shipped alert links a runbook (NFR-93)
 
 **Exit criteria TG-1**: (1) SSO login through APISIX hits an RLS-protected read-only page; (2) a scripted mutation shows its audit record, outbox event, and event-audit entry committed atomically; (3) tamper attempt on each audit store fails; (4) full stack deploys from the umbrella chart on two different providers + k3s (NFR-80 smoke evidence).
 

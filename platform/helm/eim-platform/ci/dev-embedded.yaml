@@ -4,9 +4,17 @@
 global:
   databasePassword: lint-placeholder
 eim-postgres:
+  backup:
+    encryptionKey: lint-placeholder
   auth:
     password: lint-placeholder
 eim-objectstore:
 eim-keycloak:
+  oidcClientSecret: lint-placeholder
   adminUsername: lint-admin
   adminPassword: lint-placeholder
+eim-apisix:
+  oidcClientSecret: lint-placeholder
+eim-core-api:
+  authMode: header  # dev: gateway-trust posture (see build log TG-1 §5)
+  oidcClientSecret: lint-placeholder

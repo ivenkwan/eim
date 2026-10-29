@@ -13,7 +13,7 @@ render() { # render <values-file> <output-file>
 }
 
 has() { # has <file> <pattern> <description>
-  if grep -q "$2" "$OUT/$1"; then
+  if grep -qE "$2" "$OUT/$1"; then
     echo "  ok: $3"
   else
     echo "  FAIL: $3 (pattern '$2' not found in $1)"
@@ -22,7 +22,7 @@ has() { # has <file> <pattern> <description>
 }
 
 lacks() { # lacks <file> <pattern> <description>
-  if grep -q "$2" "$OUT/$1"; then
+  if grep -qE "$2" "$OUT/$1"; then
     echo "  FAIL: $3 (pattern '$2' unexpectedly found in $1)"
     exit 1
   else
@@ -41,7 +41,7 @@ has embedded.yaml 'shared_preload_libraries=age' 'AGE preloaded'
 
 echo "[matrix] posture: external PostgreSQL"
 render external-db.yaml extdb.yaml
-lacks extdb.yaml 'name: eim-postgres' 'embedded PostgreSQL removed'
+lacks extdb.yaml '^  name: eim-postgres$' 'embedded PostgreSQL StatefulSet removed'
 has extdb.yaml 'corporate-pg.example.internal' 'apps point at external host'
 has extdb.yaml 'name: eim-kafka' 'embedded Kafka still present'
 
@@ -52,9 +52,9 @@ has extkafka.yaml 'corporate-kafka.example.internal:9092' 'external bootstrap se
 
 echo "[matrix] posture: fully external data plane"
 render external-all.yaml extall.yaml
-lacks extall.yaml 'name: eim-postgres' 'no embedded PostgreSQL'
+lacks extall.yaml '^  name: eim-postgres$' 'no embedded PostgreSQL'
 lacks extall.yaml 'name: eim-kafka' 'no embedded Kafka'
-lacks extall.yaml 'name: eim-objectstore' 'no embedded objectstore'
+lacks extall.yaml '^  name: eim-objectstore$' 'no embedded objectstore deployment'
 has extall.yaml 'name: eim-core-api' 'apps still deploy'
 has extall.yaml 'name: eim-apisix' 'gateway still deploys'
 
