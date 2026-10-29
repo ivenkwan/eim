@@ -16,6 +16,7 @@
     "audit:mappings": "node scripts/check-audit-mappings.mjs",
     "golden": "node scripts/golden-test.mjs",
     "openapi:lint": "spectral lint openapi/*.yaml",
+    "web-budget": "node scripts/check-web-budget.mjs",
     "verify:tg0": "bash scripts/verify-tg0.sh"
   },
   "devDependencies": {

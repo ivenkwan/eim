@@ -32,6 +32,7 @@ public class EventAuditConsumer {
     @Incoming("sync-events-in")
     @Incoming("trueup-events-in")
     @Incoming("hierarchy-events-in")
+    @Incoming("calc-events-in")
     public CompletionStage<Void> onEvent(Message<String> msg) {
         IncomingKafkaRecordMetadata<Long, String> meta =
                 msg.getMetadata(IncomingKafkaRecordMetadata.class).orElse(null);

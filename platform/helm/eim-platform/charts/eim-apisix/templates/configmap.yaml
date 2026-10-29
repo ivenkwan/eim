@@ -82,6 +82,41 @@ data:
             bearer_only: true
             ssl_verify: false
             access_token_in_authorization_header: true
+      # Plan compiler + calc engine (TG-3): same OIDC edge posture.
+      - uri: /api/v1/plans/*
+        upstream:
+          type: roundrobin
+          nodes:
+            "eim-plan-compiler:8084": 1
+        plugins:
+          proxy-rewrite:
+            headers:
+              set:
+                X-Auth-Token: $http_authorization
+          openid-connect:
+            client_id: eim-gateway
+            client_secret: {{ .Values.oidcClientSecret | required "eim-apisix.oidcClientSecret is required (NFR-53)" | quote }}
+            discovery: http://eim-keycloak:8080/realms/eim/.well-known/openid-configuration
+            bearer_only: true
+            ssl_verify: false
+            access_token_in_authorization_header: true
+      - uri: /api/v1/calc/*
+        upstream:
+          type: roundrobin
+          nodes:
+            "eim-calc-engine:8082": 1
+        plugins:
+          proxy-rewrite:
+            headers:
+              set:
+                X-Auth-Token: $http_authorization
+          openid-connect:
+            client_id: eim-gateway
+            client_secret: {{ .Values.oidcClientSecret | required "eim-apisix.oidcClientSecret is required (NFR-53)" | quote }}
+            discovery: http://eim-keycloak:8080/realms/eim/.well-known/openid-configuration
+            bearer_only: true
+            ssl_verify: false
+            access_token_in_authorization_header: true
       # Health/hello stays open for probes (read-only, no data).
       - uri: /api/v1/hello
         upstream:

@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: EIM Calculation Engine
-  version: 0.1.0
-  summary: Deterministic calculation engine (wavefronts, marginal tiers, shadow replay)
+  version: 0.2.0
+  summary: Deterministic calculation engine (wavefronts, marginal tiers, caps/draws/clawbacks, atomic ledger, shadow replay, sandbox preview)
 servers:
   - url: http://localhost:8082
 paths:
@@ -20,7 +20,7 @@ paths:
   /api/v1/calc/runs:
     post:
       operationId: requestCalculationRun
-      summary: Request a calculation run for a payout period (orchestrated via process engine)
+      summary: Execute a calculation run for a payout period against a published plan version (FR-503/507)
       x-audit:
         action: CALCULATION_RUN
         stream: action
@@ -32,11 +32,65 @@ paths:
               $ref: '#/components/schemas/CalcRunRequest'
       responses:
         '202':
-          description: Run accepted
+          description: Run executed; stats returned
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CalcRunAccepted'
+                $ref: '#/components/schemas/RunStats'
+        '400':
+          description: Missing tenantId / payoutPeriodId / planVersionHash
+        '500':
+          description: Run failed — atomic-or-clean, zero ledger rows
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunFailure'
+  /api/v1/calc/preview:
+    post:
+      operationId: previewPlan
+      summary: Synchronous sandbox preview for the builder (FR-407) — inline DRAFT plan + labeled synthetic deals, nothing persisted
+      x-audit:
+        action: PLAN_EDIT
+        stream: config
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreviewRequest'
+      responses:
+        '200':
+          description: Component values, ledger lines and the step trace with elapsedMs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreviewOutput'
+        '400':
+          description: Missing plan or transactions
+  /api/v1/calc/shadow-replay:
+    post:
+      operationId: shadowReplay
+      summary: Bi-temporal shadow replay of a LOCKED period; emits PRIOR_PERIOD_TRUEUP into the open period (FR-508)
+      x-audit:
+        action: CALCULATION_RUN
+        stream: action
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplayRequest'
+      responses:
+        '202':
+          description: Diff summary + emitted true-up lines
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReplayResult'
+        '400':
+          description: Missing identifiers
+        '500':
+          description: Replay failed (e.g. period not LOCKED)
 components:
   schemas:
     HelloResponse:
@@ -60,11 +114,163 @@ components:
           type: string
         planVersionHash:
           type: string
-    CalcRunAccepted:
+        roundingMode:
+          type: [string, 'null']
+          enum: [HALF_EVEN, HALF_UP, null]
+    RunStats:
       type: object
-      required: [accepted, runId]
+      required: [runId, status, waves, payees, transactions, ledgerEntries, durationMs]
       properties:
-        accepted:
-          type: boolean
         runId:
           type: string
+        status:
+          type: string
+          enum: [COMPLETED, FAILED]
+        waves:
+          type: integer
+        payees:
+          type: integer
+        transactions:
+          type: integer
+        ledgerEntries:
+          type: integer
+        durationMs:
+          type: integer
+        error:
+          type: [string, 'null']
+    RunFailure:
+      type: object
+      required: [error, runId]
+      properties:
+        error:
+          type: string
+        runId:
+          type: string
+    PreviewRequest:
+      type: object
+      required: [plan, transactions]
+      properties:
+        plan:
+          $ref: '#/components/schemas/PreviewPlan'
+        transactions:
+          type: array
+          items:
+            type: object
+            required: [date, amount]
+            properties:
+              date:
+                type: string
+              amount:
+                type: string
+        ctx:
+          type: object
+          additionalProperties:
+            type: string
+        roundingMode:
+          type: [string, 'null']
+    PreviewPlan:
+      type: object
+      required: [components]
+      properties:
+        planName:
+          type: [string, 'null']
+        components:
+          type: array
+          items:
+            type: object
+            required: [name, kind]
+            properties:
+              name:
+                type: string
+              kind:
+                type: string
+                enum: [FORMULA, TIER_TABLE, WINDOW, DRAW, CAP, CLAWBACK, ROLLUP]
+              outputType:
+                type: [string, 'null']
+              formula:
+                type: [string, 'null']
+              parameters:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    value:
+                      type: [string, 'null']
+              tiers:
+                type: object
+                properties:
+                  mode:
+                    type: string
+                    enum: [MARGINAL, CLIFF]
+                  basis:
+                    type: string
+                    enum: [AMOUNT, PERCENT]
+                  brackets:
+                    type: array
+                    items:
+                      type: object
+                      required: [rate]
+                      properties:
+                        upTo:
+                          type: [string, 'null']
+                        rate:
+                          type: string
+              protections:
+                type: object
+                properties:
+                  drawKind:
+                    type: [string, 'null']
+                  capScope:
+                    type: [string, 'null']
+                  capBasis:
+                    type: [string, 'null']
+                  capValue:
+                    type: [string, 'null']
+                  clawbackWindowDays:
+                    type: [string, 'null']
+              dependsOn:
+                type: array
+                items:
+                  type: string
+    PreviewOutput:
+      type: object
+      required: [components, lines, trace, elapsedMs]
+      properties:
+        components:
+          type: object
+          additionalProperties:
+            type: string
+        lines:
+          type: array
+          items:
+            type: object
+        trace:
+          type: array
+          items:
+            type: object
+        elapsedMs:
+          type: integer
+    ReplayRequest:
+      type: object
+      required: [tenantId, lockedPeriodId, openPeriodId, planVersionHash]
+      properties:
+        tenantId:
+          type: string
+        lockedPeriodId:
+          type: string
+        openPeriodId:
+          type: string
+        planVersionHash:
+          type: string
+    ReplayResult:
+      type: object
+      required: [diffs, lines]
+      properties:
+        diffs:
+          type: integer
+        lines:
+          type: array
+          items:
+            type: object

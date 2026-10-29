@@ -1,0 +1,22 @@
+{{- if .Values.keda.enabled }}
+# TG3-CAL-14 (arch §7.3): scale calculation workers on Kafka topic lag.
+# Disabled in the dev posture (KEDA not installed on the kind cluster);
+# enabled where the KEDA operator runs (staging/prod values).
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ .Chart.Name }}
+  labels: { app: {{ .Chart.Name }} }
+spec:
+  scaleTargetRef:
+    name: {{ .Chart.Name }}
+  minReplicaCount: {{ .Values.keda.minReplicas }}
+  maxReplicaCount: {{ .Values.keda.maxReplicas }}
+  triggers:
+    - type: kafka
+      metadata:
+        bootstrapServers: {{ required "kafka.bootstrapServers required" .Values.keda.bootstrapServers | quote }}
+        consumerGroup: eim-calc-engine
+        topic: eim.calc.run.requested
+        lagThreshold: "{{ .Values.keda.lagThreshold }}"
+{{- end }}

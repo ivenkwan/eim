@@ -5,3 +5,11 @@ image:
 resources:
   requests: { cpu: 100m, memory: 192Mi }
   limits: { cpu: "1", memory: 512Mi }
+# KEDA autoscaling on calc-run topic lag (TG3-CAL-14 / NFR-30). Requires
+# the KEDA operator; disabled on the dev kind cluster by default.
+keda:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  lagThreshold: 100
+  bootstrapServers: eim-kafka:9092

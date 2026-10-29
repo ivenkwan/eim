@@ -38,6 +38,10 @@ topics:
     producer: eim-connectors
     consumers: [eim-process, eim-calc-engine]
     description: Effective-dated hierarchy edited (SCD-2 manager move / payee create)
+  - name: eim.plan.published
+    producer: eim-plan-compiler
+    consumers: [eim-process, eim-calc-engine, eim-core-api]
+    description: A plan version passed the publish gate; immutable artifacts registered
   - name: eim.trueup.posted
     producer: eim-process
     consumers: [eim-calc-engine, eim-core-api]

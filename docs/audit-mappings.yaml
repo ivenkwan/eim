@@ -33,6 +33,9 @@ events:
   eim.hierarchy.changed:
     stream: config
     action: CONFIG_CHANGE
+  eim.plan.published:
+    stream: config
+    action: PLAN_PUBLISH
   eim.trueup.posted:
     stream: event
     action: TRUEUP_POSTING

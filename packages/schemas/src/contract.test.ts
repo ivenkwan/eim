@@ -2,7 +2,7 @@
 // against SPEC-DERIVED zod schemas. If the spec changes without the client
 // regenerating, or a server response drifts from the spec, these fail.
 import { describe, expect, it } from 'vitest';
-import { HelloResponseSchema, ConfigChangeAcceptedSchema, CalcRunAcceptedSchema } from './index.ts';
+import { HelloResponseSchema, ConfigChangeAcceptedSchema, RunStatsSchema } from './index.ts';
 
 describe('spec-derived schemas accept conforming payloads', () => {
   it('HelloResponse (core-api)', () => {
@@ -15,9 +15,18 @@ describe('spec-derived schemas accept conforming payloads', () => {
     expect(ConfigChangeAcceptedSchema.parse(payload)).toEqual(payload);
   });
 
-  it('CalcRunAccepted (calc-engine)', () => {
-    const payload: unknown = { accepted: true, runId: 'run-9' };
-    expect(CalcRunAcceptedSchema.parse(payload)).toEqual(payload);
+  it('RunStats (calc-engine)', () => {
+    const payload: unknown = {
+      runId: 'run-9',
+      status: 'COMPLETED',
+      waves: 2,
+      payees: 5,
+      transactions: 120,
+      ledgerEntries: 7,
+      durationMs: 812,
+      error: null,
+    };
+    expect(RunStatsSchema.parse(payload)).toEqual(payload);
   });
 });
 

@@ -2,14 +2,10 @@
 
 import { z } from 'zod';
 
-export const CalcRunAcceptedSchema = z.strictObject({
-  accepted: z.boolean(),
-  runId: z.string(),
-});
-
 export const CalcRunRequestSchema = z.strictObject({
   payoutPeriodId: z.string(),
   planVersionHash: z.string(),
+  roundingMode: z.unknown().optional(),
   tenantId: z.string(),
 });
 
@@ -17,6 +13,91 @@ export const HelloResponseSchema = z.strictObject({
   message: z.string(),
   service: z.string(),
   status: z.enum(['ok']),
+});
+
+export const PreviewOutputSchema = z.strictObject({
+  components: z.strictObject({
+
+  }),
+  elapsedMs: z.number().int(),
+  lines: z.array(z.strictObject({
+
+  })),
+  trace: z.array(z.strictObject({
+
+  })),
+});
+
+export const PreviewPlanSchema = z.strictObject({
+  components: z.array(z.strictObject({
+    dependsOn: z.array(z.string()).optional(),
+    formula: z.unknown().optional(),
+    kind: z.enum(['FORMULA', 'TIER_TABLE', 'WINDOW', 'DRAW', 'CAP', 'CLAWBACK', 'ROLLUP']),
+    name: z.string(),
+    outputType: z.unknown().optional(),
+    parameters: z.array(z.strictObject({
+      name: z.string().optional(),
+      value: z.unknown().optional(),
+    })).optional(),
+    protections: z.strictObject({
+      capBasis: z.unknown().optional(),
+      capScope: z.unknown().optional(),
+      capValue: z.unknown().optional(),
+      clawbackWindowDays: z.unknown().optional(),
+      drawKind: z.unknown().optional(),
+    }).optional(),
+    tiers: z.strictObject({
+      basis: z.enum(['AMOUNT', 'PERCENT']).optional(),
+      brackets: z.array(z.strictObject({
+        rate: z.string(),
+        upTo: z.unknown().optional(),
+      })).optional(),
+      mode: z.enum(['MARGINAL', 'CLIFF']).optional(),
+    }).optional(),
+  })),
+  planName: z.unknown().optional(),
+});
+
+export const PreviewRequestSchema = z.strictObject({
+  ctx: z.strictObject({
+
+  }).optional(),
+  plan: PreviewPlanSchema,
+  roundingMode: z.unknown().optional(),
+  transactions: z.array(z.strictObject({
+    amount: z.string(),
+    date: z.string(),
+  })),
+});
+
+export const ReplayRequestSchema = z.strictObject({
+  lockedPeriodId: z.string(),
+  openPeriodId: z.string(),
+  planVersionHash: z.string(),
+  tenantId: z.string(),
+});
+
+export const ReplayResultSchema = z.strictObject({
+  diffs: z.number().int(),
+  lines: z.array(z.strictObject({
+
+  })),
+});
+
+export const RunFailureSchema = z.strictObject({
+  error: z.string(),
+  runId: z.string(),
+});
+
+export const RunStatsSchema = z.strictObject({
+  durationMs: z.number().int(),
+  error: z.unknown().optional(),
+  ledgerEntries: z.number().int(),
+  payees: z.number().int(),
+  runId: z.string(),
+  status: z.enum(['COMPLETED', 'FAILED']),
+  transactions: z.number().int(),
+  waves: z.number().int(),
 });
 
 export const ConnectorRunResultSchema = z.strictObject({
@@ -136,4 +217,77 @@ export const MePayeeResponseSchema = z.strictObject({
 
 export const PeriodLockRequestSchema = z.strictObject({
   reason: z.string(),
+});
+
+export const BracketSchema = z.strictObject({
+  rate: z.string(),
+  upTo: z.unknown().optional(),
+});
+
+export const ParameterSchema = z.strictObject({
+  name: z.string(),
+  type: z.enum(['CURRENCY', 'PERCENT', 'DECIMAL', 'BOOLEAN', 'DATE']),
+  value: z.unknown().optional(),
+});
+
+export const ProtectionsSchema = z.strictObject({
+  capBasis: z.unknown().optional(),
+  capScope: z.unknown().optional(),
+  capValue: z.unknown().optional(),
+  clawbackWindowDays: z.unknown().optional(),
+  drawKind: z.unknown().optional(),
+});
+
+export const PublishRejectedSchema = z.strictObject({
+  error: z.string(),
+  problems: z.array(z.string()),
+});
+
+export const PublishResultSchema = z.strictObject({
+  newlyPublished: z.boolean(),
+  planName: z.string(),
+  planVersionHash: z.string(),
+  topologicalOrder: z.array(z.string()).optional(),
+});
+
+export const StoredArtifactsSchema = z.strictObject({
+  dmn: z.string(),
+  drl: z.string(),
+  helperJava: z.string(),
+  planName: z.string(),
+  publishedAt: z.string(),
+});
+
+export const TierTableSchema = z.strictObject({
+  basis: z.enum(['AMOUNT', 'PERCENT']),
+  brackets: z.array(BracketSchema),
+  mode: z.enum(['MARGINAL', 'CLIFF']),
+});
+
+export const ComponentSchema = z.strictObject({
+  dependsOn: z.array(z.string()).optional(),
+  formula: z.unknown().optional(),
+  kind: z.enum(['FORMULA', 'TIER_TABLE', 'WINDOW', 'DRAW', 'CAP', 'CLAWBACK', 'ROLLUP']),
+  name: z.string(),
+  outputType: z.enum(['CURRENCY', 'PERCENT', 'DECIMAL', 'BOOLEAN', 'DATE']),
+  parameters: z.array(ParameterSchema).optional(),
+  protections: ProtectionsSchema.optional(),
+  tiers: TierTableSchema.optional(),
+});
+
+export const PlanModelSchema = z.strictObject({
+  components: z.array(ComponentSchema),
+  planName: z.string().optional(),
+});
+
+export const ValidationReportSchema = z.strictObject({
+  ok: z.boolean(),
+  report: z.strictObject({
+    canonicalHash: z.string().optional(),
+    inferredTypes: z.strictObject({
+
+    }).optional(),
+    problems: z.array(z.string()),
+    topologicalOrder: z.array(z.string()),
+  }),
 });

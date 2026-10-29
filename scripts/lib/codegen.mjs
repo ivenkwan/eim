@@ -91,7 +91,36 @@ export function generateZodOutput() {
   const seen = new Set();
   for (const spec of loadSpecs()) {
     const schemas = spec.doc.components?.schemas ?? {};
-    for (const name of Object.keys(schemas).sort()) {
+    // emit dependency-first: a $ref to a later component would otherwise hit
+    // the const temporal dead zone at import time
+    const refsOf = (name) => {
+      const out = new Set();
+      const walk = (node) => {
+        if (Array.isArray(node)) {
+          node.forEach(walk);
+          return;
+        }
+        if (node !== null && typeof node === 'object') {
+          if (typeof node.$ref === 'string') {
+            out.add(node.$ref.replace('#/components/schemas/', ''));
+          }
+          Object.values(node).forEach(walk);
+        }
+      };
+      walk(schemas[name]);
+      return out;
+    };
+    const ordered = [];
+    const emitted = new Set();
+    const pending = Object.keys(schemas).sort();
+    let guard = 0;
+    while (pending.length > 0 && guard++ < 10_000) {
+      const idx = pending.findIndex((n) => [...refsOf(n)].every((r) => !schemas[r] || emitted.has(r)));
+      const name = idx >= 0 ? pending.splice(idx, 1)[0] : pending.shift(); // cycle fallback
+      emitted.add(name);
+      ordered.push(name);
+    }
+    for (const name of ordered) {
       if (seen.has(name)) continue; // HelloResponse shared shape: first definition wins
       seen.add(name);
       blocks.push(`export const ${name}Schema = ${zodExpr(schemas[name], 0)};`, '');

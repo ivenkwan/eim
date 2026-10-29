@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: EIM Plan Compiler
-  version: 0.1.0
-  summary: Compiles published plans into versioned DRL/DMN artifacts (Tarjan SCC, DMN checks)
+  version: 0.2.0
+  summary: Plan DSL -> validated, immutable DRL/DMN artifacts (type checker, Tarjan SCC, DMN checks, registry)
 servers:
   - url: http://localhost:8084
 paths:
@@ -17,6 +17,71 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HelloResponse'
+  /api/v1/plans/validate:
+    post:
+      operationId: validatePlan
+      summary: Type-check + cycle + tier checks without persisting (builder UI surface, FR-402.2/406.1)
+      x-audit:
+        action: PLAN_EDIT
+        stream: config
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanModel'
+      responses:
+        '200':
+          description: Validation report (problems, topological order, inferred types, canonical hash)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationReport'
+  /api/v1/plans/publish:
+    post:
+      operationId: publishPlan
+      summary: Publish gate — compiles and appends the immutable artifact version (FR-406, NFR-62)
+      x-audit:
+        action: PLAN_PUBLISH
+        stream: config
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanModel'
+      responses:
+        '202':
+          description: Version registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishResult'
+        '409':
+          description: Publish gate rejected the plan (type errors / cycles / tier gaps)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishRejected'
+  /api/v1/plans/{hash}/artifacts:
+    get:
+      operationId: getPlanArtifacts
+      summary: Fetch the immutable artifact set for a plan version (read-only)
+      parameters:
+        - name: hash
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: DRL + helper bundle + DMN for the version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoredArtifacts'
+        '404':
+          description: Unknown version
 components:
   schemas:
     HelloResponse:
@@ -29,4 +94,156 @@ components:
           type: string
           enum: [ok]
         message:
+          type: string
+    PlanModel:
+      type: object
+      required: [components]
+      properties:
+        planName:
+          type: string
+        components:
+          type: array
+          items:
+            $ref: '#/components/schemas/Component'
+    Component:
+      type: object
+      required: [name, kind, outputType]
+      properties:
+        name:
+          type: string
+          description: lower_snake_case, unique per plan
+        kind:
+          type: string
+          enum: [FORMULA, TIER_TABLE, WINDOW, DRAW, CAP, CLAWBACK, ROLLUP]
+        outputType:
+          type: string
+          enum: [CURRENCY, PERCENT, DECIMAL, BOOLEAN, DATE]
+        formula:
+          type: [string, 'null']
+          description: Typed expression over $params/$facts and @component refs
+        parameters:
+          type: array
+          items:
+            $ref: '#/components/schemas/Parameter'
+        tiers:
+          $ref: '#/components/schemas/TierTable'
+        protections:
+          $ref: '#/components/schemas/Protections'
+        dependsOn:
+          type: array
+          items:
+            type: string
+    Parameter:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [CURRENCY, PERCENT, DECIMAL, BOOLEAN, DATE]
+        value:
+          type: [string, 'null']
+    TierTable:
+      type: object
+      required: [mode, basis, brackets]
+      properties:
+        mode:
+          type: string
+          enum: [MARGINAL, CLIFF]
+        basis:
+          type: string
+          enum: [AMOUNT, PERCENT]
+        brackets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Bracket'
+    Bracket:
+      type: object
+      required: [rate]
+      properties:
+        upTo:
+          type: [string, 'null']
+          description: decimal upper bound; null = catch-all (must be last)
+        rate:
+          type: string
+          description: decimal rate e.g. 0.10
+    Protections:
+      type: object
+      properties:
+        drawKind:
+          type: [string, 'null']
+          enum: ['RECOVERABLE', 'NON_RECOVERABLE', null]
+        capScope:
+          type: [string, 'null']
+          enum: ['PERIOD', 'ANNUAL', null]
+        capBasis:
+          type: [string, 'null']
+          enum: ['AMOUNT', 'PERCENT', null]
+        capValue:
+          type: [string, 'null']
+        clawbackWindowDays:
+          type: [string, 'null']
+    ValidationReport:
+      type: object
+      required: [ok, report]
+      properties:
+        ok:
+          type: boolean
+        report:
+          type: object
+          required: [problems, topologicalOrder]
+          properties:
+            problems:
+              type: array
+              items:
+                type: string
+            topologicalOrder:
+              type: array
+              items:
+                type: string
+            inferredTypes:
+              type: object
+              additionalProperties:
+                type: string
+            canonicalHash:
+              type: string
+    PublishResult:
+      type: object
+      required: [planVersionHash, planName, newlyPublished]
+      properties:
+        planVersionHash:
+          type: string
+        planName:
+          type: string
+        newlyPublished:
+          type: boolean
+        topologicalOrder:
+          type: array
+          items:
+            type: string
+    PublishRejected:
+      type: object
+      required: [error, problems]
+      properties:
+        error:
+          type: string
+        problems:
+          type: array
+          items:
+            type: string
+    StoredArtifacts:
+      type: object
+      required: [planName, drl, helperJava, dmn, publishedAt]
+      properties:
+        planName:
+          type: string
+        drl:
+          type: string
+        helperJava:
+          type: string
+          description: '//==FILE: marker-delimited source bundle'
+        dmn:
+          type: string
+        publishedAt:
           type: string
