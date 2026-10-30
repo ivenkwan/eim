@@ -57,6 +57,17 @@ public class WavefrontRunner {
 
     public RunStats run(UUID tenantId, UUID payoutPeriodId, String planVersionHash,
                         String roundingMode) throws Exception {
+        return run(tenantId, payoutPeriodId, planVersionHash, roundingMode, null);
+    }
+
+    /**
+     * Incremental recalculation (TG7-CAL-2, FR-509): when a payee filter is
+     * supplied, only those payees AND their manager chain are recomputed and
+     * only their ledger rows are replaced — untouched payees keep their
+     * published rows byte-identical (deterministic replay for the rest).
+     */
+    public RunStats run(UUID tenantId, UUID payoutPeriodId, String planVersionHash,
+                        String roundingMode, java.util.Set<UUID> payeeFilter) throws Exception {
         long start = System.nanoTime();
         UUID runId = UUID.randomUUID();
         EngineModel plan = loadPlan(planVersionHash);
@@ -68,6 +79,9 @@ public class WavefrontRunner {
         // Wavefronts (AGE-resolved levels; level 0 = leaf).
         Map<Integer, List<UUID>> waves = loadWavefronts();
         Map<UUID, String> payeeNames = loadPayeeNames();
+        if (payeeFilter != null && !payeeFilter.isEmpty()) {
+            waves = scopeWaves(waves, payeeFilter);
+        }
 
         RoundingMode engineRounding = "HALF_UP".equals(roundingMode)
                 ? RoundingMode.HALF_UP : RoundingMode.HALF_EVEN;
@@ -163,7 +177,7 @@ public class WavefrontRunner {
         }
 
         int entries = commitLedger(tenantId, payoutPeriodId, planVersionHash,
-                payeeNames, p, ledgerRows);
+                payeeNames, p, ledgerRows, payeeFilter);
         long dur = (System.nanoTime() - start) / 1_000_000;
         // transactions counted in the aggregate SQL (per-payee slices are no
         // longer resident at this point)
@@ -258,10 +272,58 @@ public class WavefrontRunner {
         }
     }
 
+    /**
+     * Restrict the wavefronts to the dirty payees plus every manager
+     * ancestor (rollups recompute along the chain, FR-509).
+     */
+    private Map<Integer, List<UUID>> scopeWaves(Map<Integer, List<UUID>> waves,
+                                                java.util.Set<UUID> dirty) throws SQLException {
+        java.util.Set<UUID> scope = new java.util.HashSet<>(dirty);
+        Map<UUID, UUID> managerOf = new java.util.HashMap<>();
+        try (java.sql.Connection c = ds.getConnection();
+             java.sql.PreparedStatement ps = c.prepareStatement(
+                     "SELECT payee_id, manager_payee_id FROM payee "
+                             + "WHERE manager_payee_id IS NOT NULL")) {
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    managerOf.put((UUID) rs.getObject(1), (UUID) rs.getObject(2));
+                }
+            }
+        }
+        for (UUID p : dirty) {
+            UUID m = managerOf.get(p);
+            while (m != null && scope.add(m)) {
+                m = managerOf.get(m);
+            }
+        }
+        Map<Integer, List<UUID>> out = new java.util.LinkedHashMap<>();
+        int kept = 0;
+        for (Map.Entry<Integer, List<UUID>> w : waves.entrySet()) {
+            List<UUID> keptPayees = new java.util.ArrayList<>();
+            for (UUID id : w.getValue()) {
+                if (scope.contains(id)) {
+                    keptPayees.add(id);
+                }
+            }
+            if (!keptPayees.isEmpty()) {
+                out.put(w.getKey(), keptPayees);
+                kept += keptPayees.size();
+            }
+        }
+        return out;
+    }
+
     /** ALL entries in one transaction — atomic-or-clean (FR-507.1). */
     private int commitLedger(UUID tenantId, UUID payoutPeriodId, String planVersionHash,
                              Map<UUID, String> payeeNames, Period p,
                              List<Object[]> rows) throws SQLException {
+        return commitLedger(tenantId, payoutPeriodId, planVersionHash, payeeNames, p, rows, null);
+    }
+
+    private int commitLedger(UUID tenantId, UUID payoutPeriodId, String planVersionHash,
+                             Map<UUID, String> payeeNames, Period p,
+                             List<Object[]> rows, java.util.Set<UUID> payeeFilter)
+            throws SQLException {
         try (Connection c = ds.getConnection()) {
             c.setAutoCommit(false);
             try (PreparedStatement ensure = c.prepareStatement(
@@ -277,8 +339,21 @@ public class WavefrontRunner {
                 ensure.setObject(1, payoutPeriodId);
                 ensure.setString(2, p.periodKey());
                 ensure.executeQuery();
-                wipe.setObject(1, payoutPeriodId);
-                wipe.executeUpdate(); // idempotent rerun of the same period
+                if (payeeFilter == null || payeeFilter.isEmpty()) {
+                    wipe.setObject(1, payoutPeriodId);
+                    wipe.executeUpdate(); // idempotent rerun of the same period
+                } else {
+                    // incremental: replace only the dirty payees' rows
+                    try (java.sql.PreparedStatement wipePayees = c.prepareStatement(
+                            "DELETE FROM commission_ledger_entry WHERE payout_period_id = ? "
+                                    + "AND entry_type NOT IN ('MANUAL_OVERRIDE','PRIOR_PERIOD_TRUEUP') "
+                                    + "AND payee_id = ANY(?::uuid[])")) {
+                        wipePayees.setObject(1, payoutPeriodId);
+                        wipePayees.setArray(2, c.createArrayOf("uuid",
+                                payeeFilter.toArray(new UUID[0])));
+                        wipePayees.executeUpdate();
+                    }
+                }
                 int n = 0;
                 for (Object[] row : rows) {
                     UUID payeeId = (UUID) row[0];

@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -89,10 +90,83 @@ public class CalcRunResource {
         }
     }
 
+    /**
+     * Incremental recalculation (TG7-CAL-2, FR-509): the dirty set is the
+     * payees whose credit allocations changed since the last SUCCESSFUL run
+     * for the period (or every payee when none exists yet); only they and
+     * their manager chain recompute, and only their ledger rows are
+     * replaced — untouched payees keep byte-identical rows.
+     */
+    @POST
+    @Path("incremental-run")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response incrementalRun(RunRequest request, @Context ContainerRequestContext req) {
+        if (request == null || isBlank(request.tenantId()) || isBlank(request.payoutPeriodId())
+                || isBlank(request.planVersionHash())) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("error", "tenantId, payoutPeriodId and planVersionHash are required"))
+                    .build();
+        }
+        try {
+            java.util.Set<UUID> dirty = dirtyPayees(UUID.fromString(request.tenantId()),
+                    UUID.fromString(request.payoutPeriodId()));
+            WavefrontRunner.RunStats stats = runner.run(
+                    UUID.fromString(request.tenantId()),
+                    UUID.fromString(request.payoutPeriodId()),
+                    request.planVersionHash(),
+                    request.roundingMode(),
+                    dirty);
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("dirtyPayees", dirty.size());
+            out.put("stats", stats);
+            return Response.accepted(out).build();
+        } catch (Exception e) {
+            return Response.status(500)
+                    .entity(Map.of("error", "incremental run failed: " + e.getMessage()))
+                    .build();
+        }
+    }
+
+    private java.util.Set<UUID> dirtyPayees(UUID tenantId, UUID payoutPeriodId) throws SQLException {
+        java.util.Set<UUID> out = new java.util.LinkedHashSet<>();
+        String lastRunAt = null;
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement(
+                     "SELECT finished_at::text FROM calc_run WHERE tenant_id = ? "
+                             + "AND payout_period_id = ? AND status = 'SUCCESS' "
+                             + "ORDER BY finished_at DESC LIMIT 1")) {
+            ps.setObject(1, tenantId);
+            ps.setObject(2, payoutPeriodId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    lastRunAt = rs.getString(1);
+                }
+            }
+        }
+        String sql = lastRunAt == null
+                ? "SELECT DISTINCT ca.payee_id FROM credit_allocation ca "
+                        + "JOIN raw_transaction t ON t.transaction_id = ca.transaction_id "
+                        + "WHERE t.tenant_id = CAST(? AS uuid)"
+                : "SELECT DISTINCT ca.payee_id FROM credit_allocation ca "
+                        + "JOIN raw_transaction t ON t.transaction_id = ca.transaction_id "
+                        + "WHERE t.tenant_id = CAST(? AS uuid) AND ca.created_at > CAST(? AS timestamptz)";
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setObject(1, tenantId);
+            if (lastRunAt != null) {
+                ps.setString(2, lastRunAt);
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    out.add((UUID) rs.getObject(1));
+                }
+            }
+        }
+        return out;
+    }
+
     /** Sandbox preview (FR-407): inline DRAFT plan + synthetic deals,
      *  nothing persisted — the <800ms builder dock path (NFR-23). */
-    @POST
-    @Path("preview")
     @Consumes(MediaType.APPLICATION_JSON)
     public Response preview(PreviewRequest request) {
         if (request == null || request.plan() == null || request.transactions() == null) {

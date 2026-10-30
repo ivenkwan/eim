@@ -107,7 +107,318 @@ paths:
           description: Role not permitted
         '409':
           description: Period not locked, or dual control violated
+  /api/v1/accounting/books:
+    post:
+      operationId: createAccountingBook
+      summary: Register an accounting book (conventions, currency, fringe, expedient) with the default classification decision table generated from policy (TG7-ACC-1/2)
+      x-audit:
+        action: CONFIG_CHANGE
+        stream: config
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountingBookRequest'
+      responses:
+        '200':
+          description: Book created
+    get:
+      operationId: listAccountingBooks
+      summary: List accounting books with policy + decision-table version
+      responses:
+        '200':
+          description: Books for the tenant
+  /api/v1/accounting/books/{bookId}/dmn:
+    put:
+      operationId: uploadClassificationDmn
+      summary: Upload a bespoke ASC 606 classification decision table (validated on the KIE DMN runtime, versioned, audited — Controller-editable)
+      x-audit:
+        action: CONFIG_CHANGE
+        stream: config
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          text/xml:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: New decision-table version
+        '400':
+          description: Decision table failed DMN validation
+  /api/v1/accounting/books/{bookId}/classification/classify/{periodKey}:
+    post:
+      operationId: classifyPeriod
+      summary: Classify every ledger entry of a LOCKED period against the book's decision table (FR-901); CAPITALIZE rows become assets with FX lock + schedules
+      x-audit:
+        action: CALCULATION_RUN
+        stream: action
+      parameters:
+        - { name: bookId, in: path, required: true, schema: { type: string } }
+        - { name: periodKey, in: path, required: true, schema: { type: string } }
+        - { name: monthsHint, in: query, schema: { type: integer } }
+      responses:
+        '200':
+          description: Classification summary (capitalized/expensed)
+        '409':
+          description: Period not locked or empty
+  /api/v1/accounting/books/{bookId}/classification/completeness/{periodKey}:
+    get:
+      operationId: classificationCompleteness
+      summary: Pre-close completeness gate (FR-908) — 100% classified or itemized exceptions
+      parameters:
+        - { name: bookId, in: path, required: true, schema: { type: string } }
+        - { name: periodKey, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Completeness report
+  /api/v1/accounting/books/{bookId}/amortization/rollforward/{periodKey}:
+    get:
+      operationId: deferredCostRollforward
+      summary: Deferred cost rollforward with the accounting identity check + current/non-current split (FR-906.1)
+      parameters:
+        - { name: bookId, in: path, required: true, schema: { type: string } }
+        - { name: periodKey, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Rollforward row
+  /api/v1/accounting/books/{bookId}/amortization/rollforward/{periodKey}/export:
+    get:
+      operationId: rollforwardDrilldownExport
+      summary: Full drill-down CSV (schedule line → asset → ledger → transaction → rep, FR-906.3)
+      parameters:
+        - { name: bookId, in: path, required: true, schema: { type: string } }
+        - { name: periodKey, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: CSV
+  /api/v1/accounting/books/{bookId}/amortization/reclass/{periodKey}:
+    post:
+      operationId: stLtReclass
+      summary: Monthly ST/LT reclassification journal (FR-906.2)
+      x-audit:
+        action: GL_PUSH
+        stream: action
+      parameters:
+        - { name: bookId, in: path, required: true, schema: { type: string } }
+        - { name: periodKey, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Reclass batch
+        '409':
+          description: Already reclassed
+  /api/v1/accounting/books/{bookId}/jes/{periodKey}/{jeType}:
+    post:
+      operationId: generateJournalBatch
+      summary: Generate a journal batch from a template (PAYROLL_ACCRUAL/CAPITALIZATION/AMORTIZATION/IMPAIRMENT/CATCH_UP) with lineage (FR-907.1)
+      x-audit:
+        action: GL_PUSH
+        stream: action
+      parameters:
+        - { name: bookId, in: path, required: true, schema: { type: string } }
+        - { name: periodKey, in: path, required: true, schema: { type: string } }
+        - { name: jeType, in: path, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JeGenerateRequest'
+      responses:
+        '200':
+          description: Balanced batch created (PENDING)
+        '409':
+          description: No source amounts / duplicate
+  /api/v1/accounting/books/{bookId}/jes/{periodKey}/balance-check:
+    get:
+      operationId: journalBalanceCheck
+      summary: Period balance gate (FR-907.2) — debits = credits per subsidiary/currency
+      parameters:
+        - { name: bookId, in: path, required: true, schema: { type: string } }
+        - { name: periodKey, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Balance report
+  /api/v1/accounting/books/{bookId}/jes/batch/{batchId}/push:
+    post:
+      operationId: pushJournalBatch
+      summary: ERP push (PENDING/EXPORTED/FAILED transitions; retry from FAILED) — FR-907.4
+      x-audit:
+        action: GL_PUSH
+        stream: action
+      parameters:
+        - { name: bookId, in: path, required: true, schema: { type: string } }
+        - { name: batchId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ErpPushRequest'
+      responses:
+        '200':
+          description: Pushed
+  /api/v1/accounting/books/{bookId}/jes/batch/{batchId}/ack:
+    post:
+      operationId: ackJournalBatch
+      summary: ERP acknowledgement (EXPORTED → SYNCED)
+      x-audit:
+        action: GL_PUSH
+        stream: action
+      parameters:
+        - { name: bookId, in: path, required: true, schema: { type: string } }
+        - { name: batchId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: SYNCED
+  /api/v1/accounting/assets/{assetId}/churn:
+    post:
+      operationId: churnAsset
+      summary: Full churn (FR-903.1) — zero unposted future lines + impairment of the remainder in the open period
+      x-audit:
+        action: MANUAL_ADJUSTMENT
+        stream: action
+      parameters:
+        - { name: assetId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssetLifecycleRequest'
+      responses:
+        '200':
+          description: CHURNED with impairment
+  /api/v1/accounting/assets/{assetId}/downgrade:
+    post:
+      operationId: downgradeAsset
+      summary: Partial downgrade (FR-903.2) — continue or pro-rata impairment per book policy
+      x-audit:
+        action: MANUAL_ADJUSTMENT
+        stream: action
+      parameters:
+        - { name: assetId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssetLifecycleRequest'
+      responses:
+        '200':
+          description: DOWNGRADED (or CONTINUE policy)
+  /api/v1/accounting/assets/{assetId}/retro-trueup:
+    post:
+      operationId: retroTrueupAsset
+      summary: Retroactive true-up (FR-903.3) — child stream from the original start, cumulative catch-up in the discovery period
+      x-audit:
+        action: TRUEUP_POSTING
+        stream: action
+      parameters:
+        - { name: assetId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssetLifecycleRequest'
+      responses:
+        '200':
+          description: Child asset + catch-up
+  /api/v1/accounting/lineage/gl-lines/{glLineId}:
+    get:
+      operationId: lineageDrill
+      summary: Zero-orphan drill-through GL → schedule → asset → ledger → transaction → rep (FR-909)
+      parameters:
+        - { name: glLineId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Full lineage chain
+  /api/v1/accounting/lineage/audit-sample/{periodKey}:
+    post:
+      operationId: lineageAuditSample
+      summary: Monthly sampled lineage audit (NFR-61) — sampled GL lines must resolve end-to-end
+      x-audit:
+        action: APPROVAL
+        stream: action
+      parameters:
+        - { name: periodKey, in: path, required: true, schema: { type: string } }
+        - { name: sample, in: query, schema: { type: integer } }
+      responses:
+        '200':
+          description: Sample result with orphan list
+  /api/v1/disputes/sla:
+    get:
+      operationId: disputeSlaReport
+      summary: SLA timers per category with breach flags (FR-705.2)
+      responses:
+        '200':
+          description: Open disputes with due times
+  /api/v1/disputes/{disputeId}/escalate:
+    post:
+      operationId: escalateDispute
+      summary: Escalate an open dispute to its category's escalation role (FR-705.2)
+      x-audit:
+        action: DISPUTE_RESOLUTION
+        stream: action
+      parameters:
+        - { name: disputeId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Escalated
+        '409':
+          description: Not open / already escalated
+  /api/v1/security/attachments/scan:
+    post:
+      operationId: scanAttachment
+      summary: Attachment malware scan gate (FR-704.2/NFR-56) — EICAR vector, executable magics, blocked extensions
+      x-audit:
+        action: DATA_OVERRIDE
+        stream: action
+      parameters:
+        - { name: filename, in: query, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Clean
+        '415':
+          description: Rejected with findings
+  /api/v1/security/gdpr/erasure:
+    post:
+      operationId: gdprErasure
+      summary: GDPR erasure request (NFR-71) — pseudonymize the payee, preserve immutable financials
+      x-audit:
+        action: DATA_OVERRIDE
+        stream: action
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GdprErasureRequest'
+      responses:
+        '202':
+          description: Pseudonymized with ledger rows preserved
+  /api/v1/security/residency:
+    get:
+      operationId: residencyReport
+      summary: Data-residency posture report (NFR-72)
+      responses:
+        '200':
+          description: Residency flags
   /api/v1/partners:
+
     post:
       operationId: onboardPartner
       summary: Register a partner tenant for onboarding with its IdP federation posture (TG6-ONB-1)
@@ -536,6 +847,44 @@ components:
       properties:
         resolution: { type: string, enum: [RESOLVED_ADJUSTED, RESOLVED_EXPLAINED] }
         note: { type: string }
+    AccountingBookRequest:
+      type: object
+      required: [bookCode]
+      properties:
+        bookCode: { type: string }
+        description: { type: [string, 'null'] }
+        functionalCurrency: { type: string }
+        amortizationConvention: { type: string, enum: [EXACT_DAILY, FULL_MONTH, MID_MONTH, PO_WEIGHTED] }
+        expedientThresholdMonths: { type: integer }
+        fringeRate: { type: string }
+        capitalizeManagerOverrides: { type: boolean }
+        seSpiffPolicy: { type: string, enum: [FORMULAIC_ONLY, ALWAYS, NEVER] }
+        renewalPolicy: { type: string, enum: [CAP_NON_COMMENSURATE, CAP_ALWAYS, EXPENSE] }
+        downgradePolicy: { type: string, enum: [CONTINUE, PRO_RATE_IMPAIR] }
+    JeGenerateRequest:
+      type: object
+      properties:
+        subsidiary: { type: string }
+        costCenter: { type: string }
+    ErpPushRequest:
+      type: object
+      properties:
+        erpTarget: { type: string, enum: [NETSUITE, SAP, WORKDAY] }
+        simulateFailure: { type: string }
+    AssetLifecycleRequest:
+      type: object
+      properties:
+        openPeriodKey: { type: string }
+        discoveryPeriodKey: { type: string }
+        contractionPct: { type: number }
+        additionalAmount: { type: string }
+        comment: { type: string }
+    GdprErasureRequest:
+      type: object
+      required: [payeeId, reason]
+      properties:
+        payeeId: { type: string }
+        reason: { type: string }
     ErrorResponse:
       type: object
       required: [error]

@@ -117,7 +117,7 @@ public class IngestionService {
         return new BatchResult(batchId, records.size(), accepted, quarantined, maxWatermark, late);
     }
 
-    private int tenantQuotaRows(TenantContext ctx) {
+    public int tenantQuotaRows(TenantContext ctx) {
         try (Connection c = ds.getConnection();
              PreparedStatement ps = c.prepareStatement(
                      "SELECT (payload->>'rows')::int FROM configuration "

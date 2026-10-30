@@ -195,6 +195,55 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WavefrontResponse'
+
+  /api/v1/erp/netsuite/revenue-events:
+    post:
+      operationId: readNetSuiteRevenueEvents
+      summary: NetSuite SuiteQL revenue-event read into erp_revenue_event (TG7-ING-1, FR-206.1) — feeds PO-weighted amortization
+      x-audit:
+        action: CONNECTOR_RUN
+        stream: action
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: Rows persisted
+        '502':
+          description: Upstream unreachable
+  /api/v1/erp/sap/contracts:
+    post:
+      operationId: readSapContracts
+      summary: SAP OData contract read (TG7-ING-1, FR-206.1)
+      x-audit:
+        action: CONNECTOR_RUN
+        stream: action
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: Contracts parsed
+  /api/v1/ingestion/metering:
+    post:
+      operationId: ingestMetering
+      summary: High-volume usage/metering bulk load (TG7-ING-2, FR-205/NFR-21) — JDBC-batched, quota-gated
+      x-audit:
+        action: CONNECTOR_RUN
+        stream: action
+      requestBody:
+        required: true
+        content:
+          text/csv:
+            schema:
+              type: string
+      responses:
+        '202':
+          description: Rows ingested with batch id
+        '400':
+          description: Malformed row or quota exceeded
 components:
   schemas:
     HelloResponse:

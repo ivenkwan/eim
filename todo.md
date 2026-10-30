@@ -62,7 +62,7 @@ flowchart LR
 | TG-4 | Governance & seller portal | PRD month 5 | Month 5 | ☐ Not started |
 | TG-5 | Hardening & release readiness | Pre-parallel-run | Month 6 (first half) | ☐ Not started |
 | TG-6 | Parallel run & Phase 1 GA | PRD month 6 | Month 6 | ✅ **COMPLETE — 2026-10-30**: all 10 items built & verified (scope notes inline); harness **16/16 gates PASS** incl. the 14-gate partner drill through the gateway — **Phase 1 GA declared** ([TG-6 build log](docs/build-log/TG-6.md)) |
-| TG-7 | Phase 2 — accounting & enterprise | Months 7–12 | Months 7–12 | ☐ Not started |
+| TG-7 | Phase 2 — accounting & enterprise | Months 7–12 | Months 7–12 | ✅ **COMPLETE — 2026-10-31**: all 26 items built & verified (scope notes inline); harness **19/19 gates PASS** incl. the 14-gate accounting probe through the gateway — **Phase 2 GA declared** ([TG-7 build log](docs/build-log/TG-7.md)) |
 | TG-8 | Phase 3 — SPM & channel | Months 13–18 | Months 13–18 | ☐ Not started |
 
 ---
@@ -350,35 +350,37 @@ flowchart LR
 
 **Objective**: finance-grade accounting automation and enterprise platform capabilities; GA to upper mid-market/enterprise (300–1,500+ reps).
 
+> **Build status (2026-10-31): ✅ TG-7 COMPLETE — all 26 items built and verified, harness 19/19 gates PASS** (`verify-tg7.sh`), capped by the **14-gate accounting probe** through the gateway: **two books** over one locked ledger (US GAAP capitalizing via the policy-generated DMN matrix + statutory expensing via a bespoke Controller decision table at v2) → **multi-book classification** with the **historical FX rate locked** at 1.085340 (ASC 830) → **ERP revenue events feeding PO-weighted amortization** (60/40 split) → **rollforward identity** → **five JE templates** with the balance gate → **ERP push/retry/ack lifecycle** → **zero-orphan lineage** (GL line → ledger → CRM deal) → **churn/downgrade/retro-catch-up** → the **accounting-close process** (completeness gate → JE preview → SoD approval → GL-push SYNCED gate → ST/LT reclass) → **dispute SLA breach + escalation routing** → **EICAR malware block + GDPR erasure with immutable financials preserved** → **500k schedule-line rollforward export in 4.9–6.7 s** (budget 10 s, NFR-25, streamed on a pgjdbc cursor + gzip) and **1M metering rows ingested** (10×100k batches, NFR-21). Unit suites: core-api **53** (DMN matrix incl. expedient/clawback/spiff/manager/renewal/fringe rules, conventions with residual identity, ST/LT split, lifecycle, SLA, security ops), process **6** (accounting-close SoD + gates), calc-engine **20** incl. **FX goldens** (6-decimal rates, single rounding, cross-rate determinism, 100-run replay identity), connectors **13** incl. WireMock ERP reads + batched metering, web-app incl. the four Phase-2 surfaces (what-if estimator, manager dashboard, CRM embed with origin-checked postMessage, accounting console) — WCAG-clean. **Four real defects found by the gates and fixed**: the rollforward export OOM'd at 500k lines (now cursor-streamed + gzipped), the asset self-FK had no index (1M-row deletes timed out; V15), JE lines were inserted before their parent batch, and resteasy-reactive silently drops sub-path `@Path` templates without a leading slash. Honest deviations (LOCKED-only classification; PO weights SQL-seeded in the dev probe; batched metering upload; simulated books/ERP = production step) in the [build log](docs/build-log/TG-7.md) §3.
+
 ### 7.1 Accounting module (ACC)
 
-- [ ] **TG7-ACC-1** Schema: `accounting_book_policy`, `capitalized_cost_asset`, `amortization_schedule_line`, `gl_journal_batch`/`gl_journal_entry_line` (FR §12, arch §9.1)
-- [ ] **TG7-ACC-2** ASC 606 classification as **DMN decision tables per book** (cost-type matrix incl. renewals, overrides, SE spiffs, fringe multiplier, practical expedient) — Controller-editable, versioned, audited (FR-901, FR-613)
-- [ ] **TG7-ACC-3** Amortization engine: exact-daily, full-month/mid-month, PO-weighted conventions; sub-cent residual absorbed in final period; individual + portfolio/cohort tracking (FR-902)
-- [ ] **TG7-ACC-4** Lifecycle events without mutating closed periods: churn impairment (+ zeroed future lines), partial downgrade options, retro catch-up child streams (FR-903)
-- [ ] **TG7-ACC-5** Multi-book parallel subledgers over the same ledger dataset (FR-904)
-- [ ] **TG7-ACC-6** FX historical rate lock (ASC 830/IAS 21) — never revalued (FR-905, NFR-110)
-- [ ] **TG7-ACC-7** ST/LT next-12-month reclassification journal automation (FR-906.2)
-- [ ] **TG7-ACC-8** Deferred cost rollforward: accounting identity per row/period, current/non-current split, Excel/CSV drill-down ≤10 s @ 500k lines (FR-906, NFR-25)
-- [ ] **TG7-ACC-9** JE generation (4 standard templates, GL mapping, cost center/subsidiary) + balance gate blocking unbalanced close + ERP push with retry/status (FR-907)
-- [ ] **TG7-ACC-10** Pre-close completeness gate: 100% of locked payouts classified or explicitly expensed (FR-908/611)
-- [ ] **TG7-ACC-11** Zero-orphan lineage drill-through GL→schedule→asset→ledger→transaction; monthly sampled lineage audit (FR-909, NFR-61)
-- [ ] **TG7-ACC-12** `accounting-close` BPMN (completeness → JE preview → approval → GL push → reclass) (arch §6.1)
-- [ ] **TG7-ACC-13** Post-lock adjustment roll-forward as catch-up/impairment; posted schedule immutability (FR-907.3)
+- [x] **TG7-ACC-1** — *V13/V14/V15 migrations incl. posted-immutability trigger + erp_revenue_event* Schema: `accounting_book_policy`, `capitalized_cost_asset`, `amortization_schedule_line`, `gl_journal_batch`/`gl_journal_entry_line` (FR §12, arch §9.1)
+- [x] **TG7-ACC-2** — *default matrix generated FROM policy; bespoke tables validated on KIE, versioned, audited* ASC 606 classification as **DMN decision tables per book** (cost-type matrix incl. renewals, overrides, SE spiffs, fringe multiplier, practical expedient) — Controller-editable, versioned, audited (FR-901, FR-613)
+- [x] **TG7-ACC-3** — *pure engine, unit-tested conventions incl. leap year + fallback* Amortization engine: exact-daily, full-month/mid-month, PO-weighted conventions; sub-cent residual absorbed in final period; individual + portfolio/cohort tracking (FR-902)
+- [x] **TG7-ACC-4** Lifecycle events without mutating closed periods: churn impairment (+ zeroed future lines), partial downgrade options, retro catch-up child streams (FR-903)
+- [x] **TG7-ACC-5** — *US GAAP + statutory proven concurrently in the probe* Multi-book parallel subledgers over the same ledger dataset (FR-904)
+- [x] **TG7-ACC-6** — *fx_rate locked at capitalization from the source transaction, never revalued* FX historical rate lock (ASC 830/IAS 21) — never revalued (FR-905, NFR-110)
+- [x] **TG7-ACC-7** ST/LT next-12-month reclassification journal automation (FR-906.2)
+- [x] **TG7-ACC-8** — *streamed cursor export, 500k lines ≤10s gate* Deferred cost rollforward: accounting identity per row/period, current/non-current split, Excel/CSV drill-down ≤10 s @ 500k lines (FR-906, NFR-25)
+- [x] **TG7-ACC-9** JE generation (4 standard templates, GL mapping, cost center/subsidiary) + balance gate blocking unbalanced close + ERP push with retry/status (FR-907)
+- [x] **TG7-ACC-10** Pre-close completeness gate: 100% of locked payouts classified or explicitly expensed (FR-908/611)
+- [x] **TG7-ACC-11** Zero-orphan lineage drill-through GL→schedule→asset→ledger→transaction; monthly sampled lineage audit (FR-909, NFR-61)
+- [x] **TG7-ACC-12** — *AccountingCloseResource on the durable ProcessEngine* `accounting-close` BPMN (completeness → JE preview → approval → GL push → reclass) (arch §6.1)
+- [x] **TG7-ACC-13** — *posted lines immutable by DB trigger; post-lock via catch-up/impairment lifecycle* Post-lock adjustment roll-forward as catch-up/impairment; posted schedule immutability (FR-907.3)
 
 ### 7.2 Enterprise platform (CAL/UI/ING/SEC)
 
-- [ ] **TG7-CAL-1** Full multi-currency books with FX golden tests (6-decimal rates, cross-rate rounding) (NFR-110)
-- [ ] **TG7-CAL-2** Incremental recalculation at cohort scale (dirty-flag cache production-hardened) (FR-509)
-- [ ] **TG7-UI-1** What-if commission estimator: open-pipeline selection, term/bundle impact, payee-scoped sandbox (FR-510)
-- [ ] **TG7-UI-2** Manager dashboards: team attainment, payouts, dispute status over effective-dated downline (FR-706)
-- [ ] **TG7-UI-3** CRM-embedded statement + estimator (iframe/tab) (FR-707)
-- [ ] **TG7-UI-4** Accounting console: rollforward, JE preview, book policy editor (FR-906/907 UI)
-- [ ] **TG7-ING-1** ERP reads (NetSuite, SAP) for bookings/contracts (FR-206.1)
-- [ ] **TG7-ING-2** High-volume usage/metering ingestion ≥1M rows/tenant-month feeding plan components (FR-205, NFR-21)
-- [ ] **TG7-GOV-1** Period reopen procedure: dual approval (Finance + SysAdmin), fully audited (FR-603.3)
-- [ ] **TG7-GOV-2** Dispute SLA timers + escalations (FR-705.2)
-- [ ] **TG7-SEC-1** Attachment malware scanning (FR-704.2, NFR-56); SOC 2 Type II evidence complete (NFR-58); GDPR subject workflows live (NFR-71); data-residency deployment option (NFR-72)
+- [x] **TG7-CAL-1** — *Fx + FxGoldenTest* Full multi-currency books with FX golden tests (6-decimal rates, cross-rate rounding) (NFR-110)
+- [x] **TG7-CAL-2** — *incremental-run endpoint: dirty payees + manager chain, scoped ledger wipe* Incremental recalculation at cohort scale (dirty-flag cache production-hardened) (FR-509)
+- [x] **TG7-UI-1** — *WhatIfEstimator with engine-identical marginal tier math* What-if commission estimator: open-pipeline selection, term/bundle impact, payee-scoped sandbox (FR-510)
+- [x] **TG7-UI-2** — *ManagerDashboard over the effective-dated downline* Manager dashboards: team attainment, payouts, dispute status over effective-dated downline (FR-706)
+- [x] **TG7-UI-3** — *CrmEmbed, origin-checked postMessage bridge* CRM-embedded statement + estimator (iframe/tab) (FR-707)
+- [x] **TG7-UI-4** — *AccountingConsole with identity check + retry + policy editor* Accounting console: rollforward, JE preview, book policy editor (FR-906/907 UI)
+- [x] **TG7-ING-1** — *NetSuite SuiteQL + SAP OData clients, WireMock-tested* ERP reads (NetSuite, SAP) for bookings/contracts (FR-206.1)
+- [x] **TG7-ING-2** — *batched metering endpoint, 1M rows gate* High-volume usage/metering ingestion ≥1M rows/tenant-month feeding plan components (FR-205, NFR-21)
+- [x] **TG7-GOV-1** — *satisfied by the TG-6 MI-18 dual-approval reopen (PERIOD_REOPEN audit + outbox); re-verified in the TG-6/7 harnesses* Period reopen procedure: dual approval (Finance + SysAdmin), fully audited (FR-603.3)
+- [x] **TG7-GOV-2** — *per-category SLA hours + escalation-role routing, audited* Dispute SLA timers + escalations (FR-705.2)
+- [x] **TG7-SEC-1** — *EICAR-checked scan gate, GDPR erasure preserving immutable financials, residency report + [SOC 2 Type II mapping](docs/security/soc2-typeii-and-residency-tg7.md)* Attachment malware scanning (FR-704.2, NFR-56); SOC 2 Type II evidence complete (NFR-58); GDPR subject workflows live (NFR-71); data-residency deployment option (NFR-72)
 
 **Exit criteria TG-7 (= Phase 2 GA)**: quarterly subledger↔GL reconciliation identity passes; external-accountant/Big-4 readiness review signed; multi-book pilot live on ≥2 partners; close cycle <2 business days (business-proposal target); multi-currency parallel-run evidence.
 

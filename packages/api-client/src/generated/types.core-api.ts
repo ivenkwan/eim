@@ -86,6 +86,364 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/accounting/books": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List accounting books with policy + decision-table version */
+        get: operations["listAccountingBooks"];
+        put?: never;
+        /** Register an accounting book (conventions, currency, fringe, expedient) with the default classification decision table generated from policy (TG7-ACC-1/2) */
+        post: operations["createAccountingBook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounting/books/{bookId}/dmn": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Upload a bespoke ASC 606 classification decision table (validated on the KIE DMN runtime, versioned, audited — Controller-editable) */
+        put: operations["uploadClassificationDmn"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounting/books/{bookId}/classification/classify/{periodKey}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Classify every ledger entry of a LOCKED period against the book's decision table (FR-901); CAPITALIZE rows become assets with FX lock + schedules */
+        post: operations["classifyPeriod"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounting/books/{bookId}/classification/completeness/{periodKey}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pre-close completeness gate (FR-908) — 100% classified or itemized exceptions */
+        get: operations["classificationCompleteness"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounting/books/{bookId}/amortization/rollforward/{periodKey}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Deferred cost rollforward with the accounting identity check + current/non-current split (FR-906.1) */
+        get: operations["deferredCostRollforward"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounting/books/{bookId}/amortization/rollforward/{periodKey}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Full drill-down CSV (schedule line → asset → ledger → transaction → rep, FR-906.3) */
+        get: operations["rollforwardDrilldownExport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounting/books/{bookId}/amortization/reclass/{periodKey}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Monthly ST/LT reclassification journal (FR-906.2) */
+        post: operations["stLtReclass"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounting/books/{bookId}/jes/{periodKey}/{jeType}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Generate a journal batch from a template (PAYROLL_ACCRUAL/CAPITALIZATION/AMORTIZATION/IMPAIRMENT/CATCH_UP) with lineage (FR-907.1) */
+        post: operations["generateJournalBatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounting/books/{bookId}/jes/{periodKey}/balance-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Period balance gate (FR-907.2) — debits = credits per subsidiary/currency */
+        get: operations["journalBalanceCheck"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounting/books/{bookId}/jes/batch/{batchId}/push": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** ERP push (PENDING/EXPORTED/FAILED transitions; retry from FAILED) — FR-907.4 */
+        post: operations["pushJournalBatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounting/books/{bookId}/jes/batch/{batchId}/ack": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** ERP acknowledgement (EXPORTED → SYNCED) */
+        post: operations["ackJournalBatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounting/assets/{assetId}/churn": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Full churn (FR-903.1) — zero unposted future lines + impairment of the remainder in the open period */
+        post: operations["churnAsset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounting/assets/{assetId}/downgrade": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Partial downgrade (FR-903.2) — continue or pro-rata impairment per book policy */
+        post: operations["downgradeAsset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounting/assets/{assetId}/retro-trueup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retroactive true-up (FR-903.3) — child stream from the original start, cumulative catch-up in the discovery period */
+        post: operations["retroTrueupAsset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounting/lineage/gl-lines/{glLineId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Zero-orphan drill-through GL → schedule → asset → ledger → transaction → rep (FR-909) */
+        get: operations["lineageDrill"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounting/lineage/audit-sample/{periodKey}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Monthly sampled lineage audit (NFR-61) — sampled GL lines must resolve end-to-end */
+        post: operations["lineageAuditSample"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/disputes/sla": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** SLA timers per category with breach flags (FR-705.2) */
+        get: operations["disputeSlaReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/disputes/{disputeId}/escalate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Escalate an open dispute to its category's escalation role (FR-705.2) */
+        post: operations["escalateDispute"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/security/attachments/scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Attachment malware scan gate (FR-704.2/NFR-56) — EICAR vector, executable magics, blocked extensions */
+        post: operations["scanAttachment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/security/gdpr/erasure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** GDPR erasure request (NFR-71) — pseudonymize the payee, preserve immutable financials */
+        post: operations["gdprErasure"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/security/residency": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Data-residency posture report (NFR-72) */
+        get: operations["residencyReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/partners": {
         parameters: {
             query?: never;
@@ -504,6 +862,42 @@ export interface components {
             resolution: "RESOLVED_ADJUSTED" | "RESOLVED_EXPLAINED";
             note: string;
         };
+        AccountingBookRequest: {
+            bookCode: string;
+            description?: string | null;
+            functionalCurrency?: string;
+            /** @enum {string} */
+            amortizationConvention?: "EXACT_DAILY" | "FULL_MONTH" | "MID_MONTH" | "PO_WEIGHTED";
+            expedientThresholdMonths?: number;
+            fringeRate?: string;
+            capitalizeManagerOverrides?: boolean;
+            /** @enum {string} */
+            seSpiffPolicy?: "FORMULAIC_ONLY" | "ALWAYS" | "NEVER";
+            /** @enum {string} */
+            renewalPolicy?: "CAP_NON_COMMENSURATE" | "CAP_ALWAYS" | "EXPENSE";
+            /** @enum {string} */
+            downgradePolicy?: "CONTINUE" | "PRO_RATE_IMPAIR";
+        };
+        JeGenerateRequest: {
+            subsidiary?: string;
+            costCenter?: string;
+        };
+        ErpPushRequest: {
+            /** @enum {string} */
+            erpTarget?: "NETSUITE" | "SAP" | "WORKDAY";
+            simulateFailure?: string;
+        };
+        AssetLifecycleRequest: {
+            openPeriodKey?: string;
+            discoveryPeriodKey?: string;
+            contractionPct?: number;
+            additionalAmount?: string;
+            comment?: string;
+        };
+        GdprErasureRequest: {
+            payeeId: string;
+            reason: string;
+        };
         ErrorResponse: {
             error: string;
         };
@@ -665,6 +1059,528 @@ export interface operations {
             };
             /** @description Period not locked, or dual control violated */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listAccountingBooks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Books for the tenant */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createAccountingBook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountingBookRequest"];
+            };
+        };
+        responses: {
+            /** @description Book created */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    uploadClassificationDmn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bookId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "text/xml": string;
+            };
+        };
+        responses: {
+            /** @description New decision-table version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Decision table failed DMN validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    classifyPeriod: {
+        parameters: {
+            query?: {
+                monthsHint?: number;
+            };
+            header?: never;
+            path: {
+                bookId: string;
+                periodKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Classification summary (capitalized/expensed) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Period not locked or empty */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    classificationCompleteness: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bookId: string;
+                periodKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Completeness report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deferredCostRollforward: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bookId: string;
+                periodKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rollforward row */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    rollforwardDrilldownExport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bookId: string;
+                periodKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description CSV */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    stLtReclass: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bookId: string;
+                periodKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reclass batch */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Already reclassed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    generateJournalBatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bookId: string;
+                periodKey: string;
+                jeType: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["JeGenerateRequest"];
+            };
+        };
+        responses: {
+            /** @description Balanced batch created (PENDING) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No source amounts / duplicate */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    journalBalanceCheck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bookId: string;
+                periodKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Balance report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    pushJournalBatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bookId: string;
+                batchId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ErpPushRequest"];
+            };
+        };
+        responses: {
+            /** @description Pushed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ackJournalBatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bookId: string;
+                batchId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description SYNCED */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    churnAsset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetLifecycleRequest"];
+            };
+        };
+        responses: {
+            /** @description CHURNED with impairment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    downgradeAsset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetLifecycleRequest"];
+            };
+        };
+        responses: {
+            /** @description DOWNGRADED (or CONTINUE policy) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    retroTrueupAsset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assetId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssetLifecycleRequest"];
+            };
+        };
+        responses: {
+            /** @description Child asset + catch-up */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    lineageDrill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                glLineId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Full lineage chain */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    lineageAuditSample: {
+        parameters: {
+            query?: {
+                sample?: number;
+            };
+            header?: never;
+            path: {
+                periodKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sample result with orphan list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    disputeSlaReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Open disputes with due times */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    escalateDispute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                disputeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Escalated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not open / already escalated */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    scanAttachment: {
+        parameters: {
+            query?: {
+                filename?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/octet-stream": string;
+            };
+        };
+        responses: {
+            /** @description Clean */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rejected with findings */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    gdprErasure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GdprErasureRequest"];
+            };
+        };
+        responses: {
+            /** @description Pseudonymized with ledger rows preserved */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    residencyReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Residency flags */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

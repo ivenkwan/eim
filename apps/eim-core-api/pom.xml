@@ -55,6 +55,13 @@
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-logging-json</artifactId>
     </dependency>
+    <!-- TG7-ACC-2: ASC 606 classification runs as versioned DMN decision
+         tables per accounting book (FR-901.2) on the KIE DMN runtime. -->
+    <dependency>
+      <groupId>org.kie</groupId>
+      <artifactId>kie-dmn-core</artifactId>
+      <version>8.40.0.Final</version>
+    </dependency>
 
     <dependency>
       <groupId>io.quarkus</groupId>

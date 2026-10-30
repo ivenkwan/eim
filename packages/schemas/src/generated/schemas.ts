@@ -191,6 +191,27 @@ export const WavefrontResponseSchema = z.strictObject({
   maxLevel: z.number().int(),
 });
 
+export const AccountingBookRequestSchema = z.strictObject({
+  amortizationConvention: z.enum(['EXACT_DAILY', 'FULL_MONTH', 'MID_MONTH', 'PO_WEIGHTED']).optional(),
+  bookCode: z.string(),
+  capitalizeManagerOverrides: z.boolean().optional(),
+  description: z.unknown().optional(),
+  downgradePolicy: z.enum(['CONTINUE', 'PRO_RATE_IMPAIR']).optional(),
+  expedientThresholdMonths: z.number().int().optional(),
+  fringeRate: z.string().optional(),
+  functionalCurrency: z.string().optional(),
+  renewalPolicy: z.enum(['CAP_NON_COMMENSURATE', 'CAP_ALWAYS', 'EXPENSE']).optional(),
+  seSpiffPolicy: z.enum(['FORMULAIC_ONLY', 'ALWAYS', 'NEVER']).optional(),
+});
+
+export const AssetLifecycleRequestSchema = z.strictObject({
+  additionalAmount: z.string().optional(),
+  comment: z.string().optional(),
+  contractionPct: z.number().optional(),
+  discoveryPeriodKey: z.string().optional(),
+  openPeriodKey: z.string().optional(),
+});
+
 export const ConfigChangeAcceptedSchema = z.strictObject({
   accepted: z.boolean(),
   requestId: z.string(),
@@ -220,6 +241,11 @@ export const DisputeSubmissionSchema = z.strictObject({
   transactionId: z.unknown().optional(),
 });
 
+export const ErpPushRequestSchema = z.strictObject({
+  erpTarget: z.enum(['NETSUITE', 'SAP', 'WORKDAY']).optional(),
+  simulateFailure: z.string().optional(),
+});
+
 export const ErrorResponseSchema = z.strictObject({
   error: z.string(),
 });
@@ -227,6 +253,16 @@ export const ErrorResponseSchema = z.strictObject({
 export const ExportRequestSchema = z.strictObject({
   periodId: z.string(),
   template: z.enum(['ADP', 'WORKDAY', 'NETSUITE_JOURNAL']),
+});
+
+export const GdprErasureRequestSchema = z.strictObject({
+  payeeId: z.string(),
+  reason: z.string(),
+});
+
+export const JeGenerateRequestSchema = z.strictObject({
+  costCenter: z.string().optional(),
+  subsidiary: z.string().optional(),
 });
 
 export const MePayeeResponseSchema = z.strictObject({

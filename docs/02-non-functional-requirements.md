@@ -436,6 +436,20 @@ machine-checked evidence: seals, dual-control pairing, action coverage,
 reconciliation). Boundary: proven on a simulated partner tenant; real
 design-partner onboarding is the production rollout step.
 
+**Phase 2 evidence status — 2026-10-31 (TG-7)**: finance-grade accounting
+evidence green on the dev cluster with linked evidence in
+[doc build log](build-log/TG-7.md) — **NFR-25** (500k schedule-line
+rollforward export in 4.9–6.7 s vs the 10 s budget, streamed on a pgjdbc
+cursor + gzip after the buffered version OOM'd), **NFR-110** (FX goldens:
+6-decimal rates, single HALF_EVEN rounding at final payout, cross-rate
+determinism, replay identity; historical rate lock per FR-905),
+**NFR-21** metering capacity (1M rows/tenant-month via batched ingestion),
+**NFR-56** (attachment malware gate incl. EICAR), **NFR-71** (GDPR erasure
+pseudonymizing identity while immutable financials survive), **NFR-58
+prep** (SOC 2 Type II operating-evidence mapping live), **NFR-72** (data
+residency deployment option + report). Boundary unchanged: simulated
+books/ERP tenancy; production rollout is the live-partner step.
+
 ---
 
 *End of non-functional requirements specification.*
