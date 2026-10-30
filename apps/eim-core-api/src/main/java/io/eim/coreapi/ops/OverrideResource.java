@@ -118,7 +118,7 @@ public class OverrideResource {
                 ps.setBigDecimal(7, new java.math.BigDecimal(adjusted));
                 ps.setString(8, reasonCode);
                 ps.setString(9, body.getString("reasonComment", null));
-                if (body.isNull("disputeId") || !body.containsKey("disputeId")) {
+                if (!body.containsKey("disputeId") || body.isNull("disputeId")) {
                     ps.setNull(10, java.sql.Types.OTHER);
                 } else {
                     ps.setObject(10, UUID.fromString(body.getString("disputeId")));

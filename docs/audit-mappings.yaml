@@ -27,6 +27,12 @@ events:
   eim.period.reopened:
     stream: event
     action: PERIOD_REOPEN
+  eim.partner.onboarded:
+    stream: config
+    action: CONFIG_CHANGE
+  eim.parallel.signedoff:
+    stream: action
+    action: APPROVAL
   eim.trueup.required:
     stream: event
     action: DATA_OVERRIDE

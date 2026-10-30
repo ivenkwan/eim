@@ -79,6 +79,172 @@ paths:
           description: Role not permitted (SoD)
         '404':
           description: Unknown period
+  /api/v1/admin/periods/{periodKey}/reopen:
+    post:
+      operationId: reopenPayoutPeriod
+      summary: MI-18 break-glass reopen — dual approval (finance_approver AND system_admin, two distinct people, impact memo mandatory)
+      x-audit:
+        action: PERIOD_REOPEN
+        stream: action
+      parameters:
+        - name: periodKey
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PeriodReopenRequest'
+      responses:
+        '200':
+          description: PENDING_DUAL_APPROVAL (one signature recorded) or EXECUTED (period OPEN again)
+        '400':
+          description: impactMemo missing
+        '403':
+          description: Role not permitted
+        '409':
+          description: Period not locked, or dual control violated
+  /api/v1/partners:
+    post:
+      operationId: onboardPartner
+      summary: Register a partner tenant for onboarding with its IdP federation posture (TG6-ONB-1)
+      x-audit:
+        action: CONFIG_CHANGE
+        stream: config
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartnerUpsertRequest'
+      responses:
+        '200':
+          description: Partner registered (status ONBOARDING)
+        '400':
+          description: Invalid name or idpPosture
+        '403':
+          description: Role not permitted
+    get:
+      operationId: listPartners
+      summary: List partner tenants with onboarding lifecycle status
+      responses:
+        '200':
+          description: Partners for the caller tenant
+  /api/v1/partners/{partnerId}/status:
+    post:
+      operationId: advancePartnerStatus
+      summary: Advance a partner one lifecycle step (ONBOARDING→BACKFILLED→PARALLEL_RUN→SIGNED_OFF→LIVE); SIGNED_OFF gated on two 100% sign-offs
+      x-audit:
+        action: CONFIG_CHANGE
+        stream: config
+      parameters:
+        - name: partnerId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartnerStatusRequest'
+      responses:
+        '200':
+          description: Status advanced
+        '409':
+          description: Not a one-step advance or sign-off gate unmet
+  /api/v1/parallel-run/partners/{partnerId}/periods/{periodKey}/legacy-statement:
+    post:
+      operationId: uploadLegacyStatement
+      summary: Upload the legacy system's statement for a period (shadow totals for the parallel run)
+      x-audit:
+        action: CONNECTOR_RUN
+        stream: action
+      parameters:
+        - { name: partnerId, in: path, required: true, schema: { type: string } }
+        - { name: periodKey, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          text/csv:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: Rows loaded (upsert per payee)
+        '400':
+          description: Malformed CSV
+  /api/v1/parallel-run/partners/{partnerId}/periods/{periodKey}/diff:
+    post:
+      operationId: generateParallelDiff
+      summary: Regenerate the cent-for-cent EIM-vs-legacy diff for the period (full outer join per payee)
+      x-audit:
+        action: CALCULATION_RUN
+        stream: action
+      parameters:
+        - { name: partnerId, in: path, required: true, schema: { type: string } }
+        - { name: periodKey, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: payees/matched/discrepant counts
+  /api/v1/parallel-run/partners/{partnerId}/periods/{periodKey}:
+    get:
+      operationId: parallelRunReport
+      summary: Per-period diff report with triage state and sign-off evidence
+      parameters:
+        - { name: partnerId, in: path, required: true, schema: { type: string } }
+        - { name: periodKey, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Diff rows + match rate + signoff hash
+  /api/v1/parallel-run/diffs/{diffId}/resolve:
+    post:
+      operationId: resolveParallelDiff
+      summary: Triage a DISCREPANT row (RESOLVED_ADJUSTED flows through the audited override path; note mandatory)
+      x-audit:
+        action: APPROVAL
+        stream: action
+      parameters:
+        - { name: diffId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiffResolveRequest'
+      responses:
+        '200':
+          description: Row resolved
+        '400':
+          description: note missing or invalid resolution
+        '409':
+          description: Row not DISCREPANT
+  /api/v1/parallel-run/partners/{partnerId}/periods/{periodKey}/signoff:
+    post:
+      operationId: signoffParallelPeriod
+      summary: Record the cent-for-cent sign-off — refused below a 100.0% match (ONB-4); evidence hash over the diff set
+      x-audit:
+        action: APPROVAL
+        stream: action
+      parameters:
+        - { name: partnerId, in: path, required: true, schema: { type: string } }
+        - { name: periodKey, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Sign-off recorded with evidence hash
+        '409':
+          description: Not at 100% or already signed off
+  /api/v1/parallel-run/close-cycle:
+    get:
+      operationId: closeCycleTelemetry
+      summary: Close-cycle telemetry — business days from period end to lock per locked period (ONB-6, SLA < 3)
+      responses:
+        '200':
+          description: Per-period close durations
   /api/v1/admin/config-change/{configurationId}/approve:
     post:
       operationId: approveConfigChange
@@ -344,6 +510,32 @@ components:
       properties:
         reason:
           type: string
+    PeriodReopenRequest:
+      type: object
+      required: [impactMemo]
+      properties:
+        impactMemo:
+          type: string
+          description: Documented incident procedure reference + impact assessment (MI-18 P1)
+    PartnerUpsertRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        idpEntityId: { type: [string, 'null'] }
+        idpPosture: { type: string, enum: [GATEWAY_OIDC, SAML_FEDERATED] }
+        payeeTarget: { type: integer }
+    PartnerStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [ONBOARDING, BACKFILLED, PARALLEL_RUN, SIGNED_OFF, LIVE] }
+    DiffResolveRequest:
+      type: object
+      required: [resolution, note]
+      properties:
+        resolution: { type: string, enum: [RESOLVED_ADJUSTED, RESOLVED_EXPLAINED] }
+        note: { type: string }
     ErrorResponse:
       type: object
       required: [error]

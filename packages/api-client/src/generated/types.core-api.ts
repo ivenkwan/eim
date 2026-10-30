@@ -69,6 +69,160 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/periods/{periodKey}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** MI-18 break-glass reopen — dual approval (finance_approver AND system_admin, two distinct people, impact memo mandatory) */
+        post: operations["reopenPayoutPeriod"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/partners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List partner tenants with onboarding lifecycle status */
+        get: operations["listPartners"];
+        put?: never;
+        /** Register a partner tenant for onboarding with its IdP federation posture (TG6-ONB-1) */
+        post: operations["onboardPartner"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/partners/{partnerId}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Advance a partner one lifecycle step (ONBOARDING→BACKFILLED→PARALLEL_RUN→SIGNED_OFF→LIVE); SIGNED_OFF gated on two 100% sign-offs */
+        post: operations["advancePartnerStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parallel-run/partners/{partnerId}/periods/{periodKey}/legacy-statement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload the legacy system's statement for a period (shadow totals for the parallel run) */
+        post: operations["uploadLegacyStatement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parallel-run/partners/{partnerId}/periods/{periodKey}/diff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Regenerate the cent-for-cent EIM-vs-legacy diff for the period (full outer join per payee) */
+        post: operations["generateParallelDiff"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parallel-run/partners/{partnerId}/periods/{periodKey}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Per-period diff report with triage state and sign-off evidence */
+        get: operations["parallelRunReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parallel-run/diffs/{diffId}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Triage a DISCREPANT row (RESOLVED_ADJUSTED flows through the audited override path; note mandatory) */
+        post: operations["resolveParallelDiff"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parallel-run/partners/{partnerId}/periods/{periodKey}/signoff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record the cent-for-cent sign-off — refused below a 100.0% match (ONB-4); evidence hash over the diff set */
+        post: operations["signoffParallelPeriod"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/parallel-run/close-cycle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Close-cycle telemetry — business days from period end to lock per locked period (ONB-6, SLA < 3) */
+        get: operations["closeCycleTelemetry"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/config-change/{configurationId}/approve": {
         parameters: {
             query?: never;
@@ -330,6 +484,26 @@ export interface components {
         PeriodLockRequest: {
             reason: string;
         };
+        PeriodReopenRequest: {
+            /** @description Documented incident procedure reference + impact assessment (MI-18 P1) */
+            impactMemo: string;
+        };
+        PartnerUpsertRequest: {
+            name: string;
+            idpEntityId?: string | null;
+            /** @enum {string} */
+            idpPosture?: "GATEWAY_OIDC" | "SAML_FEDERATED";
+            payeeTarget?: number;
+        };
+        PartnerStatusRequest: {
+            /** @enum {string} */
+            status: "ONBOARDING" | "BACKFILLED" | "PARALLEL_RUN" | "SIGNED_OFF" | "LIVE";
+        };
+        DiffResolveRequest: {
+            /** @enum {string} */
+            resolution: "RESOLVED_ADJUSTED" | "RESOLVED_EXPLAINED";
+            note: string;
+        };
         ErrorResponse: {
             error: string;
         };
@@ -446,6 +620,294 @@ export interface operations {
             };
             /** @description Unknown period */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    reopenPayoutPeriod: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                periodKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PeriodReopenRequest"];
+            };
+        };
+        responses: {
+            /** @description PENDING_DUAL_APPROVAL (one signature recorded) or EXECUTED (period OPEN again) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description impactMemo missing */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Role not permitted */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Period not locked, or dual control violated */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listPartners: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Partners for the caller tenant */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    onboardPartner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PartnerUpsertRequest"];
+            };
+        };
+        responses: {
+            /** @description Partner registered (status ONBOARDING) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid name or idpPosture */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Role not permitted */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    advancePartnerStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partnerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PartnerStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description Status advanced */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a one-step advance or sign-off gate unmet */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    uploadLegacyStatement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partnerId: string;
+                periodKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "text/csv": string;
+            };
+        };
+        responses: {
+            /** @description Rows loaded (upsert per payee) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Malformed CSV */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    generateParallelDiff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partnerId: string;
+                periodKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description payees/matched/discrepant counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    parallelRunReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partnerId: string;
+                periodKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Diff rows + match rate + signoff hash */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    resolveParallelDiff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                diffId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DiffResolveRequest"];
+            };
+        };
+        responses: {
+            /** @description Row resolved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description note missing or invalid resolution */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Row not DISCREPANT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    signoffParallelPeriod: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partnerId: string;
+                periodKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sign-off recorded with evidence hash */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not at 100% or already signed off */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    closeCycleTelemetry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Per-period close durations */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -3,8 +3,10 @@ image:
   repository: eim-calc-engine
   tag: 0.1.0-dev
 resources:
-  requests: { cpu: 100m, memory: 192Mi }
-  limits: { cpu: "1", memory: 512Mi }
+  # 2Gi is the TG-5 finding: per-payee streaming cohorts at 1M+ rows OOM
+  # below this (NFR-20/21). Owned by the chart, not by kubectl-set.
+  requests: { cpu: 100m, memory: 1Gi }
+  limits: { cpu: "1", memory: 2Gi }
 # KEDA autoscaling on calc-run topic lag (TG3-CAL-14 / NFR-30). Requires
 # the KEDA operator; disabled on the dev kind cluster by default.
 keda:

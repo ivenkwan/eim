@@ -202,6 +202,11 @@ export const ConfigChangeRequestSchema = z.strictObject({
   reason: z.string(),
 });
 
+export const DiffResolveRequestSchema = z.strictObject({
+  note: z.string(),
+  resolution: z.enum(['RESOLVED_ADJUSTED', 'RESOLVED_EXPLAINED']),
+});
+
 export const DisputeResolutionSchema = z.strictObject({
   comment: z.string(),
   resolution: z.enum(['APPROVE', 'REJECT']),
@@ -243,8 +248,23 @@ export const OverrideRequestSchema = z.strictObject({
   reasonComment: z.string(),
 });
 
+export const PartnerStatusRequestSchema = z.strictObject({
+  status: z.enum(['ONBOARDING', 'BACKFILLED', 'PARALLEL_RUN', 'SIGNED_OFF', 'LIVE']),
+});
+
+export const PartnerUpsertRequestSchema = z.strictObject({
+  idpEntityId: z.unknown().optional(),
+  idpPosture: z.enum(['GATEWAY_OIDC', 'SAML_FEDERATED']).optional(),
+  name: z.string(),
+  payeeTarget: z.number().int().optional(),
+});
+
 export const PeriodLockRequestSchema = z.strictObject({
   reason: z.string(),
+});
+
+export const PeriodReopenRequestSchema = z.strictObject({
+  impactMemo: z.string(),
 });
 
 export const BracketSchema = z.strictObject({

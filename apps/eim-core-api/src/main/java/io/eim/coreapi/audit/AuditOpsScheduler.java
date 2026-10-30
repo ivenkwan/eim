@@ -45,22 +45,27 @@ public class AuditOpsScheduler {
                 .register(registry);
     }
 
-    /** Seal yesterday's audit day (hash chain). Manual runs via AdminOpsResource. */
-    @Scheduled(cron = "0 10 0 * * ?", identity = "audit-sealer")
+    /**
+     * Seal completed audit days (hash chain). Manual runs via AdminOpsResource.
+     * Hourly + idempotent + UTC-day computed in SQL: the trigger time no
+     * longer depends on the pod timezone (Quarkus @Scheduled has no cron
+     * zone attribute), so a completed UTC day is sealed within an hour of
+     * UTC midnight regardless of where the JVM thinks it is.
+     */
+    @Scheduled(cron = "0 10 * * * ?", identity = "audit-sealer")
     void sealYesterday() {
-        LocalDate yesterday = LocalDate.now().minusDays(1);
         try (Connection c = ds.getConnection();
-             PreparedStatement ps = c.prepareStatement("SELECT eim_ops.seal_audit_day(?)")) {
-            ps.setDate(1, java.sql.Date.valueOf(yesterday));
+             PreparedStatement ps = c.prepareStatement(
+                     "SELECT eim_ops.seal_audit_day((now() AT TIME ZONE 'UTC')::date - 1)")) {
             try (java.sql.ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    LOG.infof("audit day %s sealed: %s", yesterday, rs.getString(1));
+                    LOG.infof("audit day sealed: %s", rs.getString(1));
                 }
             }
         } catch (SQLException e) {
             // An empty day refuses to seal (expected on quiet days); anything
             // else is real and must page (runbook: audit-sealer).
-            LOG.warnf(e, "audit seal for %s failed", yesterday);
+            LOG.warnf(e, "audit seal failed");
         }
     }
 

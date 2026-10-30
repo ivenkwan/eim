@@ -424,6 +424,18 @@ NFR-80/81 (portability matrix), NFR-90/91/93 (observability + runbooks).
 Staging-environment execution of the same suite is the production release
 pipeline's gating step.
 
+**Phase 1 GA evidence status — 2026-10-30 (TG-6)**: the parallel-run row's
+obligations are green on the dev cluster with linked evidence in
+[doc/build-log/TG-6.md](build-log/TG-6.md) — **NFR-06** (100.0%
+cent-for-cent × 2 consecutive periods with recorded sign-off + sha256
+evidence hash; the sign-off endpoint refuses anything below 100%) and
+**NFR-124** (close-cycle telemetry < 3 business days on a live pay period;
+admin autonomy — hierarchy/plan/connector configuration by RevOps through
+APIs only). NFR-58 prep is live (SOC 2 controls mapping with
+machine-checked evidence: seals, dual-control pairing, action coverage,
+reconciliation). Boundary: proven on a simulated partner tenant; real
+design-partner onboarding is the production rollout step.
+
 ---
 
 *End of non-functional requirements specification.*

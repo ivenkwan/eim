@@ -30,6 +30,14 @@ topics:
     producer: eim-process
     consumers: [eim-core-api, eim-connectors]
     description: Break-glass reopen executed (dual approval)
+  - name: eim.partner.onboarded
+    producer: eim-core-api
+    consumers: [eim-process]
+    description: Partner tenant registered or advanced in the onboarding lifecycle (TG6)
+  - name: eim.parallel.signedoff
+    producer: eim-core-api
+    consumers: [eim-process]
+    description: Cent-for-cent parallel-run sign-off recorded for a partner period (100.0% match, evidence hash)
   - name: eim.trueup.required
     producer: [eim-connectors, eim-core-api]
     consumers: [eim-process]
