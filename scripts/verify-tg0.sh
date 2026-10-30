@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # TG-0 verification harness — runs EVERY tollgate-0 gate locally, the same
 # way CI does (.github/workflows/ci.yml). Produces pass/fail per item;
-# results are recorded in doc/build-log/TG-0.md.
+# results are recorded in docs/build-log/TG-0.md.
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 

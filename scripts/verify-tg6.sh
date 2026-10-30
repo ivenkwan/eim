@@ -108,10 +108,10 @@ soc2_evidence() {
 step TG6-OPS-2 "SOC 2 evidence: seals + dual-control pairing + action coverage + reconciliation" soc2_evidence
 
 ga_docs() {
-  [ -f doc/ga-deployment-tg6.md ] && grep -q "On-call model" doc/ga-deployment-tg6.md \
-    && grep -q "Incident process" doc/ga-deployment-tg6.md \
-    && [ -f doc/cutover-hypercare-tg6.md ] && grep -q "Hypercare rotation" doc/cutover-hypercare-tg6.md \
-    && [ -f doc/soc2-controls-tg6.md ] && grep -q "Control matrix" doc/soc2-controls-tg6.md
+  [ -f docs/ga-deployment-tg6.md ] && grep -q "On-call model" docs/ga-deployment-tg6.md \
+    && grep -q "Incident process" docs/ga-deployment-tg6.md \
+    && [ -f docs/cutover-hypercare-tg6.md ] && grep -q "Hypercare rotation" docs/cutover-hypercare-tg6.md \
+    && [ -f docs/soc2-controls-tg6.md ] && grep -q "Control matrix" docs/soc2-controls-tg6.md
 }
 step TG6-OPS-1 "GA deployment posture + cutover/hypercare + SOC 2 controls docs" ga_docs
 

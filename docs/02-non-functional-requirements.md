@@ -414,7 +414,7 @@ Identical inputs (transactions, credits, hierarchy, plan version) shall always p
 
 **Release-candidate evidence status — 2026-10-30 (TG-5)**: the RC row's
 verification obligations are green on the dev kind cluster with linked
-evidence in [doc/build-log/TG-5.md](build-log/TG-5.md) — NFR-21/25/42/61/64
+evidence in [docs/build-log/TG-5.md](build-log/TG-5.md) — NFR-21/25/42/61/64
 (enterprise scale, replica parity, DR incl. AGE, assurance pack),
 NFR-22/23 (latency SLOs + preview budget), NFR-24 (rollup benchmark),
 NFR-30/32 (chaos + KEDA posture), NFR-33 (quota isolation), NFR-40/41/43/44
@@ -426,7 +426,7 @@ pipeline's gating step.
 
 **Phase 1 GA evidence status — 2026-10-30 (TG-6)**: the parallel-run row's
 obligations are green on the dev cluster with linked evidence in
-[doc/build-log/TG-6.md](build-log/TG-6.md) — **NFR-06** (100.0%
+[docs/build-log/TG-6.md](build-log/TG-6.md) — **NFR-06** (100.0%
 cent-for-cent × 2 consecutive periods with recorded sign-off + sha256
 evidence hash; the sign-off endpoint refuses anything below 100%) and
 **NFR-124** (close-cycle telemetry < 3 business days on a live pay period;

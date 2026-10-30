@@ -19,7 +19,7 @@ bash scripts/dev-up.sh          # credentials land in .dev-secrets.env (gitignor
 bash scripts/dev-up.sh --destroy
 ```
 
-Read, in order: [architecture plan](../doc/03-architecture-plan.md) →
+Read, in order: [architecture plan](../docs/03-architecture-plan.md) →
 [ADR-009](adr/ADR-009-audit-first-mutation.md) (audit-first) →
 [CONTRIBUTING](../CONTRIBUTING.md) (DoD).
 
@@ -42,4 +42,4 @@ Read, in order: [architecture plan](../doc/03-architecture-plan.md) →
 | `scripts/` | codegen, gates, dev cluster, scaffolds (provenance) |
 | `fixtures/golden/` | Golden calculation fixtures |
 | `docs/` | ADRs, events/audit catalogs, security, this file |
-| `doc/` | Requirements & architecture (specs) |
+| `docs/` | Requirements & architecture (specs) |

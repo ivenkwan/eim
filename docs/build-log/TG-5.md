@@ -5,7 +5,7 @@
 | **Date** | Built & verified 2026-10-30 |
 | **Harness** | `bash scripts/verify-tg5.sh` (20 gates) + `scripts/tg5-scale-load.sh` (6) + `scripts/tg5-chaos-dr.sh` (8) + in-cluster red-team probe |
 | **Result** | ✅ **ALL 20 GATES GREEN** — enterprise scale 5,000×1M in **10.4 s** (budget 10 min), latency SLOs **p95 65 ms / p99 67 ms reads, 53 ms writes** (budgets 300/800/500), zero-downtime deploy, chaos pod-kill recovery, DR restore incl. AGE catalog, WORM tier, red-team probe, RLS role regression, audit assurance pack |
-| **Companion** | [todo.md](../../todo.md) · [TG-4 build log](TG-4.md) · [ops runbooks/capacity](ops-tg5-runbooks.md) · [retention/GDPR design](retention-gdpr-tg5.md) |
+| **Companion** | [todo.md](../../todo.md) · [TG-4 build log](TG-4.md) · [ops runbooks/capacity](../ops-tg5-runbooks.md) · [retention/GDPR design](../retention-gdpr-tg5.md) |
 
 ---
 
@@ -53,8 +53,8 @@
 - **Connector tenant quotas (NFR-33)**: registry-configurable `connector.tenant_quota_rows` gate in `IngestionService` (default 100k) rejecting oversized batches up front (400 naming NFR-33) with zero partial rows; isolation test proves the neighbor tenant proceeds.
 - **RLS role regression in CI (NFR-52)**: `RlsRoleRegressionTest` — same fixture, three identities; ships in the standard suite so a policy regression cannot pass CI.
 - **Calc-engine heap sizing**: 2 Gi limit documented in the capacity plan (§3).
-- **Operability pack** (`doc/ops-tg5-runbooks.md`): SLO table, 12 alerts → 10 runbooks (100%), capacity plan with the audit-volume projection obligation (R-8), portability statement.
-- **Retention/GDPR design** (`doc/retention-gdpr-tg5.md`): registry-configured retention windows + the agreed pseudonymization (not deletion) mechanism reconciling Art. 17 with NFR-44 immutability, with explicit sign-off scoping.
+- **Operability pack** (`docs/ops-tg5-runbooks.md`): SLO table, 12 alerts → 10 runbooks (100%), capacity plan with the audit-volume projection obligation (R-8), portability statement.
+- **Retention/GDPR design** (`docs/retention-gdpr-tg5.md`): registry-configured retention windows + the agreed pseudonymization (not deletion) mechanism reconciling Art. 17 with NFR-44 immutability, with explicit sign-off scoping.
 
 ## 3. Honest deviations & findings
 

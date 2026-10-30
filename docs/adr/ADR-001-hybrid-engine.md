@@ -1,6 +1,6 @@
 # ADR-001: Hybrid engine — Kogito/Drools orchestration + dedicated JVM calculation service
 
-- **Status:** Accepted (ratifies AD-1, [architecture §2](../../doc/03-architecture-plan.md))
+- **Status:** Accepted (ratifies AD-1, [architecture §2](../../docs/03-architecture-plan.md))
 - **Date:** 2026-10-28
 
 ## Context

@@ -130,13 +130,13 @@ np_present() {
 step TG5-SEC-1 "NetworkPolicies enforced (gateway-only ingress)" np_present
 
 ops_docs() {
-  [ -f doc/ops-tg5-runbooks.md ] && [ -f doc/retention-gdpr-tg5.md ] \
-    && grep -q "RB-10" doc/ops-tg5-runbooks.md \
-    && grep -q "pseudonymization" doc/retention-gdpr-tg5.md
+  [ -f docs/ops-tg5-runbooks.md ] && [ -f docs/retention-gdpr-tg5.md ] \
+    && grep -q "RB-10" docs/ops-tg5-runbooks.md \
+    && grep -q "pseudonymization" docs/retention-gdpr-tg5.md
 }
 step TG5-OPS-5/6 "SLO dashboards + alert→runbook 100% + capacity plan docs" ops_docs
 step TG5-AUD-2 "retention + GDPR erasure-vs-immutability design (NFR-63/71)" \
-  bash -c 'grep -q "signed off" doc/retention-gdpr-tg5.md'
+  bash -c 'grep -q "signed off" docs/retention-gdpr-tg5.md'
 
 printf '\n========================================\n'
 printf 'TG-5 verification: %d passed, %d failed\n' "$PASS" "$FAIL"

@@ -31,7 +31,7 @@ pnpm audit:mappings --self-test
 mvn -f apps/pom.xml verify    # backend: all five Quarkus services
 ```
 
-Full TG-0 verification: `bash scripts/verify-tg0.sh` (see [build log](doc/build-log/TG-0.md)).
+Full TG-0 verification: `bash scripts/verify-tg0.sh` (see [build log](docs/build-log/TG-0.md)).
 
 ## Conventional commits
 
