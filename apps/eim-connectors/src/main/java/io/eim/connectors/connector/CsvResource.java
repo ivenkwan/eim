@@ -47,11 +47,23 @@ public class CsvResource {
                     .entity(error("csv body is required")).build();
         }
         Map<String, String> mapping = mappingOf(upload.mapping());
-        List<Map<String, Object>> records = parseCsv(upload.csv());
-        IngestionService.BatchResult result = ingestion.ingest(
-                ctx, "CSV",
-                upload.objectName() == null ? "manual_upload" : upload.objectName(),
-                "deal_id", null, records, mapping);
+        List<Map<String, Object>> records;
+        try {
+            records = parseCsv(upload.csv());
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("error", e.getMessage())).build();
+        }
+        IngestionService.BatchResult result;
+        try {
+            result = ingestion.ingest(
+                    ctx, "CSV",
+                    upload.objectName() == null ? "manual_upload" : upload.objectName(),
+                    "deal_id", null, records, mapping);
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("error", e.getMessage())).build();
+        }
         return Response.status(Response.Status.ACCEPTED).entity(new CsvResult(
                 true, result.batchId().toString(), result.total(), result.accepted(),
                 result.quarantined(), result.watermarkAfter(), result.lateArriving())).build();

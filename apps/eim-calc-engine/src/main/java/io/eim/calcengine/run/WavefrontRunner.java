@@ -67,14 +67,20 @@ public class WavefrontRunner {
 
         // Wavefronts (AGE-resolved levels; level 0 = leaf).
         Map<Integer, List<UUID>> waves = loadWavefronts();
-        Map<UUID, List<Engine.Txn>> txns = loadTransactions(tenantId, p);
         Map<UUID, String> payeeNames = loadPayeeNames();
 
         RoundingMode engineRounding = "HALF_UP".equals(roundingMode)
                 ? RoundingMode.HALF_UP : RoundingMode.HALF_EVEN;
         Engine engine = new Engine(plan, engineRounding);
 
-        // compute phase (in memory) — waves sequential, payees parallel
+        // Cohort strategy (NFR-20 vs NFR-21): small cohorts load in one
+        // query (fastest for the 500×100k benchmark); enterprise cohorts
+        // stream per-payee so a 1M-row month never exhausts the heap.
+        int txnCount0 = countTransactions(tenantId, p);
+        Map<UUID, List<Engine.Txn>> cohort = txnCount0 <= COHORT_LOAD_LIMIT
+                ? loadTransactions(tenantId, p) : null;
+
+        // compute phase — waves sequential, payees parallel
         Map<UUID, Engine.PayeeResult> results = new LinkedHashMap<>();
         Map<String, BigDecimal> rollupSums = new LinkedHashMap<>();
         ExecutorService pool = Executors.newFixedThreadPool(
@@ -89,10 +95,11 @@ public class WavefrontRunner {
                                     "injected fault at payee " + payeeId + " (TST-3)");
                         }
                         Map<String, String> ctx = payeeCtx(payeeId, p, rollupSums);
+                        List<Engine.Txn> slice = cohort != null
+                                ? cohort.getOrDefault(payeeId, List.of())
+                                : loadPayeeTransactions(tenantId, p, payeeId);
                         Engine.PayeeResult r = engine.evaluate(
-                                String.valueOf(payeeId),
-                                txns.getOrDefault(payeeId, List.of()),
-                                ctx);
+                                String.valueOf(payeeId), slice, ctx);
                         synchronized (results) {
                             results.put(payeeId, r);
                         }
@@ -158,7 +165,9 @@ public class WavefrontRunner {
         int entries = commitLedger(tenantId, payoutPeriodId, planVersionHash,
                 payeeNames, p, ledgerRows);
         long dur = (System.nanoTime() - start) / 1_000_000;
-        int txnCount = txns.values().stream().mapToInt(List::size).sum();
+        // transactions counted in the aggregate SQL (per-payee slices are no
+        // longer resident at this point)
+        int txnCount = txnCount0;
         recordRun(runId, tenantId, payoutPeriodId, planVersionHash, "COMPLETED",
                 waves.size(), results.size(), txnCount, entries, dur, null);
         return new RunStats(runId, "COMPLETED", waves.size(), results.size(),
@@ -351,6 +360,9 @@ public class WavefrontRunner {
         return waves;
     }
 
+    /** Cohort loads stay under this row count; beyond it, stream per payee. */
+    private static final int COHORT_LOAD_LIMIT = 200_000;
+
     /** Deterministic order (transaction_date, source_ts, uuid) — FR-501. */
     private Map<UUID, List<Engine.Txn>> loadTransactions(UUID tenantId, Period p)
             throws SQLException {
@@ -366,7 +378,7 @@ public class WavefrontRunner {
                              + "ORDER BY t.transaction_date, ts, t.transaction_id")) {
             ps.setObject(1, tenantId);
             ps.setDate(2, java.sql.Date.valueOf(p.startsOn));
-            ps.setDate(3, java.sql.Date.valueOf(p.endsOn));
+            ps.setDate(3, java.sql.Date.valueOf(p.endsOn()));
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     byPayee.computeIfAbsent(UUID.fromString(rs.getString(1)),
@@ -383,6 +395,57 @@ public class WavefrontRunner {
                 .thenComparing(Engine.Txn::sourceTsUtc)
                 .thenComparing(Engine.Txn::transactionId)));
         return byPayee;
+    }
+
+    /**
+     * One payee's credited transactions for the period — the per-payee slice
+     * that keeps a 1M-row cohort resident-bounded (NFR-21). Deterministic
+     * order (transaction_date, source_ts, uuid) — FR-501.
+     */
+    private List<Engine.Txn> loadPayeeTransactions(UUID tenantId, Period p, UUID payeeId)
+            throws SQLException {
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement(
+                     "SELECT t.transaction_id, t.transaction_date, "
+                             + "t.created_at AS ts, t.booking_amount * ca.split_pct "
+                             + "AS credited "
+                             + "FROM raw_transaction t JOIN credit_allocation ca "
+                             + "ON ca.transaction_id = t.transaction_id "
+                             + "WHERE t.tenant_id = ? AND ca.payee_id = ? "
+                             + "AND t.transaction_date BETWEEN ? AND ? "
+                             + "ORDER BY t.transaction_date, ts, t.transaction_id")) {
+            ps.setObject(1, tenantId);
+            ps.setObject(2, payeeId);
+            ps.setDate(3, java.sql.Date.valueOf(p.startsOn));
+            ps.setDate(4, java.sql.Date.valueOf(p.endsOn));
+            try (ResultSet rs = ps.executeQuery()) {
+                List<Engine.Txn> out = new ArrayList<>();
+                while (rs.next()) {
+                    out.add(new Engine.Txn(rs.getString(1),
+                            rs.getDate(2).toLocalDate(),
+                            rs.getTimestamp(3).toInstant().toString(),
+                            rs.getBigDecimal(4)));
+                }
+                return out;
+            }
+        }
+    }
+
+    /** Aggregate row count for run stats without materializing the cohort. */
+    private int countTransactions(UUID tenantId, Period p) throws SQLException {
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement(
+                     "SELECT count(*) FROM raw_transaction t JOIN credit_allocation ca "
+                             + "ON ca.transaction_id = t.transaction_id "
+                             + "WHERE t.tenant_id = ? AND t.transaction_date BETWEEN ? AND ?")) {
+            ps.setObject(1, tenantId);
+            ps.setDate(2, java.sql.Date.valueOf(p.startsOn));
+            ps.setDate(3, java.sql.Date.valueOf(p.endsOn));
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                return rs.getInt(1);
+            }
+        }
     }
 
     private Map<UUID, String> loadPayeeNames() throws SQLException {

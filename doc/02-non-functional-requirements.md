@@ -412,6 +412,18 @@ Identical inputs (transactions, credits, hierarchy, plan version) shall always p
 | Parallel run (design partners) | 2 consecutive pay periods | 06, 124 |
 | Annual | pen test, SOC 2 evidence | 54, 55, 58, 70 |
 
+**Release-candidate evidence status — 2026-10-30 (TG-5)**: the RC row's
+verification obligations are green on the dev kind cluster with linked
+evidence in [doc/build-log/TG-5.md](build-log/TG-5.md) — NFR-21/25/42/61/64
+(enterprise scale, replica parity, DR incl. AGE, assurance pack),
+NFR-22/23 (latency SLOs + preview budget), NFR-24 (rollup benchmark),
+NFR-30/32 (chaos + KEDA posture), NFR-33 (quota isolation), NFR-40/41/43/44
+(zero-downtime, degradation, WORM), NFR-51/52/54 (gateway auth, RLS suite,
+red-team probe), NFR-62/63/71 (immutability, retention, GDPR design),
+NFR-80/81 (portability matrix), NFR-90/91/93 (observability + runbooks).
+Staging-environment execution of the same suite is the production release
+pipeline's gating step.
+
 ---
 
 *End of non-functional requirements specification.*

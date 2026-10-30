@@ -43,6 +43,15 @@ public class IngestionService {
     }
 
     /**
+     * Per-tenant row quota per batch (NFR-33): one tenant's warehouse burst
+     * cannot monopolize the shared connector runtime — oversized batches are
+     * rejected up front with a clear error while other tenants proceed.
+     * Configured via the configuration registry (entity
+     * {@code connector.tenant_quota_rows}); default 100,000.
+     */
+    public static final int DEFAULT_TENANT_QUOTA_ROWS = 100_000;
+
+    /**
      * Ingest one batch of source records. All parameterized SQL; the entire
      * batch (rows + quarantine + batch record + audit + outbox) commits or
      * rolls back together.
@@ -51,6 +60,13 @@ public class IngestionService {
     public BatchResult ingest(TenantContext ctx, String sourceSystem, String objectName,
                               String watermarkColumn, String watermarkValue,
                               List<Map<String, Object>> records, Map<String, String> mapping) {
+        int quota = tenantQuotaRows(ctx);
+        if (records.size() > quota) {
+            throw new IllegalArgumentException(
+                    "tenant quota exceeded: batch of " + records.size()
+                            + " rows is above the per-batch limit of " + quota
+                            + " (NFR-33) — split the sync or raise connector.tenant_quota_rows");
+        }
         UUID batchId = UUID.randomUUID();
         int accepted = 0;
         int quarantined = 0;
@@ -99,6 +115,22 @@ public class IngestionService {
                 "{\"source\":\"" + sourceSystem + "\",\"batch\":\"" + batchId + "\",\"accepted\":" + accepted
                         + ",\"quarantined\":" + quarantined + ",\"late_arriving\":" + late + "}");
         return new BatchResult(batchId, records.size(), accepted, quarantined, maxWatermark, late);
+    }
+
+    private int tenantQuotaRows(TenantContext ctx) {
+        try (Connection c = ds.getConnection();
+             PreparedStatement ps = c.prepareStatement(
+                     "SELECT (payload->>'rows')::int FROM configuration "
+                             + "WHERE entity = 'connector.tenant_quota_rows' "
+                             + "AND tenant_id::text = ? AND status = 'ACTIVE' "
+                             + "ORDER BY created_at DESC LIMIT 1")) {
+            ps.setString(1, ctx.tenantId());
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : DEFAULT_TENANT_QUOTA_ROWS;
+            }
+        } catch (SQLException e) {
+            return DEFAULT_TENANT_QUOTA_ROWS; // fail open on config issues; the quota is isolation, not a security gate
+        }
     }
 
     // ---------------------------------------------------------------- helpers
