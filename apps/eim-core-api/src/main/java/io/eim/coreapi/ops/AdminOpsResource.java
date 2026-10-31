@@ -63,7 +63,7 @@ public class AdminOpsResource {
         }
         int window = hours <= 0 ? 24 : hours;
         try (Connection c = ds.getConnection();
-             PreparedStatement ps = c.prepareStatement("SELECT * FROM eim_ops.reconcile_audit(?)")) {
+             PreparedStatement ps = c.prepareStatement("SELECT * FROM eim_ops.reconcile_audit_full(?)")) {
             ps.setTimestamp(1, Timestamp.from(java.time.OffsetDateTime.now().minusHours(window).toInstant()));
             try (ResultSet rs = ps.executeQuery()) {
                 rs.next();
@@ -72,7 +72,11 @@ public class AdminOpsResource {
                 out.put("audited_mutations", rs.getLong(1));
                 out.put("outbox_rows", rs.getLong(2));
                 out.put("published_events", rs.getLong(3));
-                out.put("gap", rs.getLong(4));
+                out.put("raw_gap", rs.getLong(4));
+                out.put("api_mutations", rs.getLong(5));
+                out.put("api_paired_outbox", rs.getLong(6));
+                out.put("api_gap", rs.getLong(7));
+                out.put("api_gap_alert", rs.getLong(7) != 0);
                 return out;
             }
         }

@@ -69,20 +69,24 @@ public class AuditOpsScheduler {
         }
     }
 
-    /** Compare mutations vs outbox vs event-audit (last hour) every minute. */
+    /** Compare mutations vs outbox vs event-audit (last hour) every minute.
+     *  The NFR-64 alert keys on the API-plane gap — process transitions
+     *  (source_channel='PROCESS') are audited-only by design, so the raw
+     *  mutation−event delta includes them without an integrity failure. */
     @Scheduled(every = "60s", identity = "audit-reconciliation")
     void reconcile() {
         try (Connection c = ds.getConnection();
              PreparedStatement ps = c.prepareStatement(
-                     "SELECT * FROM eim_ops.reconcile_audit(?)")) {
+                     "SELECT * FROM eim_ops.reconcile_audit_full(?)")) {
             ps.setTimestamp(1, Timestamp.from(OffsetDateTime.now().minusHours(1).toInstant()));
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    long gap = rs.getLong(4);
-                    auditGapGauge.set(gap);
-                    if (gap != 0) {
-                        LOG.warnf("AUDIT RECONCILIATION GAP = %d (mutations=%d outbox=%d events=%d) — NFR-64 alert",
-                                gap, rs.getLong(1), rs.getLong(2), rs.getLong(3));
+                    long apiGap = rs.getLong(7);
+                    auditGapGauge.set(apiGap);
+                    if (apiGap != 0) {
+                        LOG.warnf("AUDIT RECONCILIATION API GAP = %d (api_mutations=%d "
+                                        + "paired_outbox=%d raw_gap=%d) — NFR-64 alert",
+                                apiGap, rs.getLong(5), rs.getLong(6), rs.getLong(4));
                     }
                 }
             }

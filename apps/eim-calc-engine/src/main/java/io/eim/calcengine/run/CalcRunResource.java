@@ -108,8 +108,16 @@ public class CalcRunResource {
                     .build();
         }
         try {
-            java.util.Set<UUID> dirty = dirtyPayees(UUID.fromString(request.tenantId()),
-                    UUID.fromString(request.payoutPeriodId()));
+            // FR-509 hardened scope: the materialized dirty cache first
+            // (drained on consumption), the timestamp diff as the fallback —
+            // the cache accelerates, it is never the source of truth
+            java.util.Set<UUID> dirty = drainDirtyCache(UUID.fromString(request.tenantId()));
+            String scope = "cache";
+            if (dirty.isEmpty()) {
+                dirty = dirtyPayees(UUID.fromString(request.tenantId()),
+                        UUID.fromString(request.payoutPeriodId()));
+                scope = "diff";
+            }
             WavefrontRunner.RunStats stats = runner.run(
                     UUID.fromString(request.tenantId()),
                     UUID.fromString(request.payoutPeriodId()),
@@ -118,6 +126,7 @@ public class CalcRunResource {
                     dirty);
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("dirtyPayees", dirty.size());
+            out.put("scope", scope);
             out.put("stats", stats);
             return Response.accepted(out).build();
         } catch (Exception e) {
@@ -125,6 +134,31 @@ public class CalcRunResource {
                     .entity(Map.of("error", "incremental run failed: " + e.getMessage()))
                     .build();
         }
+    }
+
+    /** Drain unconsumed dirty rows for the tenant (and mark them consumed). */
+    private java.util.Set<UUID> drainDirtyCache(UUID tenantId) throws SQLException {
+        java.util.Set<UUID> out = new java.util.LinkedHashSet<>();
+        try (Connection c = ds.getConnection();
+             PreparedStatement sel = c.prepareStatement(
+                     "SELECT DISTINCT payee_id::text FROM recalc_dirty_payee "
+                             + "WHERE tenant_id = ? AND consumed_at IS NULL")) {
+            sel.setObject(1, tenantId);
+            try (ResultSet rs = sel.executeQuery()) {
+                while (rs.next()) {
+                    out.add(UUID.fromString(rs.getString(1)));
+                }
+            }
+            if (!out.isEmpty()) {
+                try (PreparedStatement mark = c.prepareStatement(
+                        "UPDATE recalc_dirty_payee SET consumed_at = now() "
+                                + "WHERE tenant_id = ? AND consumed_at IS NULL")) {
+                    mark.setObject(1, tenantId);
+                    mark.executeUpdate();
+                }
+            }
+        }
+        return out;
     }
 
     private java.util.Set<UUID> dirtyPayees(UUID tenantId, UUID payoutPeriodId) throws SQLException {

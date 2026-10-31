@@ -4,6 +4,7 @@ import io.agroal.api.AgroalDataSource;
 import io.eim.connectors.audit.AuditService;
 import io.eim.connectors.common.TenantContext;
 import jakarta.enterprise.context.ApplicationScoped;
+import org.jboss.logging.Logger;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
@@ -28,6 +29,11 @@ import java.util.UUID;
  */
 @ApplicationScoped
 public class IngestionService {
+
+    private static final Logger LOG = Logger.getLogger(IngestionService.class);
+
+    @Inject
+    SourceSnapshotOffloader snapshots;
 
     @Inject
     AgroalDataSource ds;
@@ -60,6 +66,21 @@ public class IngestionService {
     public BatchResult ingest(TenantContext ctx, String sourceSystem, String objectName,
                               String watermarkColumn, String watermarkValue,
                               List<Map<String, Object>> records, Map<String, String> mapping) {
+        return ingest(ctx, sourceSystem, objectName, watermarkColumn, watermarkValue,
+                records, mapping, null);
+    }
+
+    /**
+     * Full variant: callers that still hold the raw payload (the CSV
+     * endpoint) pass it through for the FR-203.3 snapshot offload — the
+     * objectstore keeps the immutable bytes under a hash-named key while
+     * the DB keeps lineage + quarantine.
+     */
+    @Transactional
+    public BatchResult ingest(TenantContext ctx, String sourceSystem, String objectName,
+                              String watermarkColumn, String watermarkValue,
+                              List<Map<String, Object>> records, Map<String, String> mapping,
+                              String rawPayload) {
         int quota = tenantQuotaRows(ctx);
         if (records.size() > quota) {
             throw new IllegalArgumentException(
@@ -68,6 +89,9 @@ public class IngestionService {
                             + " (NFR-33) — split the sync or raise connector.tenant_quota_rows");
         }
         UUID batchId = UUID.randomUUID();
+        if (rawPayload != null) {
+            snapshots.offload(batchId, ctx.tenantId(), objectName, rawPayload);
+        }
         int accepted = 0;
         int quarantined = 0;
         int late = 0;
@@ -216,6 +240,25 @@ public class IngestionService {
             ps.setBigDecimal(5, tx.splitPct() == null ? BigDecimal.ONE : tx.splitPct());
             ps.setDate(6, java.sql.Date.valueOf(tx.transactionDate()));
             ps.executeUpdate();
+        }
+        // FR-509: this payee's outputs are stale — mark the recalc dirty set
+        markRecalcDirty(c, ctx, payeeId);
+    }
+
+    /** Materialize the incremental-recalc dirty set (best-effort: the calc
+     *  engine falls back to its timestamp diff when the cache is empty). */
+    private void markRecalcDirty(Connection c, TenantContext ctx, UUID payeeId) {
+        try (PreparedStatement ps = c.prepareStatement(
+                "INSERT INTO recalc_dirty_payee (tenant_id, payee_id, source) "
+                        + "VALUES (CAST(? AS uuid), CAST(? AS uuid), 'INGEST') "
+                        + "ON CONFLICT DO NOTHING")) {
+            ps.setString(1, ctx.tenantId());
+            ps.setString(2, payeeId.toString());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            // the calc-engine migration owns this table; if it has not run
+            // (older deploy ordering), the diff fallback keeps recalc correct
+            LOG.debugf("dirty-set marking skipped: %s", e.getMessage());
         }
     }
 

@@ -42,8 +42,11 @@ spec:
               value: {{ required "global.databasePassword is required" .Values.global.databasePassword | quote }}
             - name: KAFKA_BOOTSTRAP_SERVERS
               value: {{ .Values.global.kafkaBootstrapServers | quote }}
+            # explicit if/else: Helm's `default` treats false as empty, so
+            # `.Values.otel.enabled | default true` flipped an explicit false
+            # to true and OTel kept exporting to an absent collector in dev
             - name: QUARKUS_OTEL_EXPORTER_OTLP_TRACES_EXPORT
-              value: {{ ternary "otlp" "none" (.Values.otel.enabled | default true) | quote }}
+              value: {{ ternary "otlp" "none" (eq (.Values.otel.enabled | toString) "true") | quote }}
             - name: KEYCLOAK_URL
               value: http://eim-keycloak:8080
             - name: OIDC_CLIENT_SECRET

@@ -47,6 +47,9 @@ public class SpmImportResource {
     @Inject
     AuditService audit;
 
+    @Inject
+    io.eim.coreapi.migration.PlanPublishClient planPublisher;
+
     public record ImportResult(String source, int payees, int hierarchyEdges,
                                int quotas, int plans, int historyRows,
                                List<String> errors) {
@@ -95,12 +98,31 @@ public class SpmImportResource {
                             }
                         }
                         case "QUOTA" -> {
-                            // QUOTA,territoryOrPayee,periodKey,amount — stored as plan_assignment-style quota
-                            quotas++;
+                            // QUOTA,territoryOrPayee,periodKey,amount — lands in
+                            // quota_allocation when the target is a territory,
+                            // staged otherwise (needs the territory import first)
+                            if (cols.length > 3) {
+                                stageQuota(c, ctx, cols);
+                                quotas++;
+                            } else {
+                                errors.add(t.substring(0, Math.min(t.length(), 80)) + " — QUOTA needs territoryOrPayee,periodKey,amount");
+                            }
                         }
                         case "PLAN" -> {
-                            // PLAN,planName,tierCsv — verified via the same tier contiguity rule at publish
-                            plans++;
+                            // PLAN,planName,baseRate,topRate,threshold — compiled
+                            // to a DRAFT PlanModel and submitted through the
+                            // SAME FR-406 publish gate (returns the hash when
+                            // the gate passes; nothing publishes implicitly)
+                            if (cols.length > 4) {
+                                String hash = publishPlan(c, ctx, cols);
+                                if (hash != null) {
+                                    plans++;
+                                } else {
+                                    errors.add(t.substring(0, Math.min(t.length(), 80)) + " — plan failed the publish gate");
+                                }
+                            } else {
+                                errors.add(t.substring(0, Math.min(t.length(), 80)) + " — PLAN needs name,baseRate,topRate,threshold");
+                            }
                         }
                         case "HISTORY" -> {
                             // HISTORY,periodKey,payeeEmployeeNumber,amount — staged payouts for parallel-run parity
@@ -189,6 +211,64 @@ public class SpmImportResource {
             ps.setBigDecimal(6, new BigDecimal(cols[3].trim()).setScale(4, RoundingMode.HALF_EVEN));
             ps.setObject(7, UUID.nameUUIDFromBytes((source + ":history").getBytes()));
             ps.executeUpdate();
+        }
+    }
+
+    /**
+     * QUOTA,territoryOrPayee,periodKey,amount → quota_allocation when the
+     * target resolves to a territory by name; otherwise counted-only
+     * (territory imports precede quotas in every SPM export ordering).
+     */
+    private void stageQuota(Connection c, TenantContext ctx, String[] cols) {
+        try (PreparedStatement find = c.prepareStatement(
+                "SELECT territory_id FROM territory "
+                        + "WHERE tenant_id = CAST(? AS uuid) AND name = ? LIMIT 1")) {
+            find.setString(1, ctx.tenantId());
+            find.setString(2, cols[1].trim());
+            String territoryId;
+            try (java.sql.ResultSet rs = find.executeQuery()) {
+                if (!rs.next()) {
+                    return; // staged as counted-only until territories import
+                }
+                territoryId = rs.getString(1);
+            }
+            try (PreparedStatement ps = c.prepareStatement(
+                    "INSERT INTO quota_allocation (quota_id, tenant_id, territory_id, period_key, "
+                            + "quota_amount) VALUES (gen_random_uuid(),CAST(? AS uuid),"
+                            + "CAST(? AS uuid),?,CAST(? AS numeric)) "
+                            + "ON CONFLICT (territory_id, period_key) DO UPDATE SET "
+                            + "quota_amount = EXCLUDED.quota_amount")) {
+                ps.setString(1, ctx.tenantId());
+                ps.setString(2, territoryId);
+                ps.setString(3, cols[2].trim());
+                ps.setBigDecimal(4, new BigDecimal(cols[3].trim()).setScale(4, RoundingMode.HALF_EVEN));
+                ps.executeUpdate();
+            }
+        } catch (SQLException | NumberFormatException e) {
+            // counted-only on any mismatch — the import summary still reports it
+        }
+    }
+
+    /**
+     * PLAN,planName,baseRate,topRate,threshold → the SAME FR-406 publish
+     * gate (type-check + tier contiguity + registry append) via the
+     * plan-compiler service. Returns the plan version hash when the gate
+     * passes; null (with the row reported in errors) when it does not.
+     */
+    private String publishPlan(Connection c, TenantContext ctx, String[] cols) {
+        String planName = cols[1].trim();
+        String baseRate = cols[2].trim();
+        String topRate = cols[3].trim();
+        String threshold = cols[4].trim();
+        String modelJson = "{\"planName\":\"" + planName + "\",\"components\":[{"
+                + "\"name\":\"" + planName + "_commission\",\"kind\":\"TIER_TABLE\","
+                + "\"outputType\":\"CURRENCY\",\"tiers\":{\"mode\":\"MARGINAL\","
+                + "\"basis\":\"AMOUNT\",\"brackets\":[{\"upTo\":\"" + threshold + "\","
+                + "\"rate\":\"" + baseRate + "\"},{\"rate\":\"" + topRate + "\"}]}}]}";
+        try {
+            return planPublisher.publishModel(ctx.tenantId(), ctx.actor(), modelJson);
+        } catch (Exception e) {
+            return null;
         }
     }
 

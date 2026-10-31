@@ -1,6 +1,7 @@
 package io.eim.connectors.audit;
 
 import io.agroal.api.AgroalDataSource;
+import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.scheduler.Scheduled;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -24,6 +25,7 @@ import java.sql.SQLException;
  * core-api event auditor's subscriptions (eim.sync.completed /
  * eim.trueup.required), keeping one exporter per service (AD-7).
  */
+@IfBuildProperty(name = "eim.audit.outbox-exporter.enabled", stringValue = "true")
 @ApplicationScoped
 public class OutboxExporter {
 

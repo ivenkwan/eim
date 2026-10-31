@@ -1,6 +1,7 @@
 package io.eim.coreapi.audit;
 
 import io.agroal.api.AgroalDataSource;
+import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.scheduler.Scheduled;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -23,7 +24,15 @@ import java.sql.SQLException;
  * Kafka, then marks them published — no event without an audit record, and no
  * business change without an event trail. Crash-safe: rows are re-delivered
  * on failure; consumers are idempotent (NFR-04).
+ *
+ * The bean itself is gated on {@code eim.audit.outbox-exporter.enabled}
+ * (default true): without Kafka (the test JVM, or a dev posture without a
+ * broker) the emitter's channel cannot start and bean creation would fail
+ * with SRMSG00019 — previously that surfaced as an ERROR every scheduler
+ * tick in every test run. The {@code %test} profile disables it; tests
+ * that need export semantics drive the row state directly.
  */
+@IfBuildProperty(name = "eim.audit.outbox-exporter.enabled", stringValue = "true")
 @ApplicationScoped
 public class OutboxExporter {
 

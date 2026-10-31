@@ -406,9 +406,12 @@ class Phase3SpmE2eTest {
                 .then().statusCode(200).extract().jsonPath();
         assertEquals(1, (int) out.getInt("payees"), "one payee imported");
         assertEquals(2, (int) out.getInt("historyRows"), "two history rows");
-        assertEquals(1, (int) out.getInt("plans"));
-        assertEquals(1, (int) out.getInt("quotas"));
-        assertEquals(1, out.getList("errors").size(), "BOGUS row rejected with an error");
+        // the old 3-field PLAN shape cannot satisfy the 5-field publish gate —
+        // reported, never silently counted (no side door)
+        assertEquals(0, (int) out.getInt("plans"), "old-shape PLAN fails the gate");
+        assertEquals(1, (int) out.getInt("quotas"), "QUOTA counted (staged-only: no territory)");
+        assertEquals(2, out.getList("errors").size(),
+                "BOGUS row + gate failure reported: " + out.getList("errors"));
         assertEquals("2", scalar("SELECT count(*) FROM raw_transaction "
                 + "WHERE tenant_id = '" + TENANT + "' AND source_system = 'MIGRATION_VARICENT'"),
                 "history lands as migration-sourced rows");
@@ -422,6 +425,79 @@ class Phase3SpmE2eTest {
         assertEquals("2", scalar("SELECT count(*) FROM raw_transaction "
                 + "WHERE tenant_id = '" + TENANT + "' AND source_system = 'MIGRATION_VARICENT'"),
                 "deterministic ids → idempotent");
+    }
+
+    @Test
+    @TestSecurity(user = "p3.migrator", roles = {"system_admin"})
+    void xactlyAndAnaplanShapesImportThroughTheSameGrammar() {
+        // Xactly export shape: same record-typed grammar, different vendor tag
+        String xactly = "record_type,payeeId,employeeNumber,fullName,email,role\n"
+                + "PAYEE,aaaaaaaa-3000-0000-0000-000000000007,XAC-1,Xactly Rep,xac@example.test,AE\n"
+                + "record_type,periodKey,employeeNumber,amount\n"
+                + "HISTORY,2027-02,XAC-1,30000\n";
+        var x = given().contentType("text/csv")
+                .header("X-Tenant-Id", TENANT).header("X-Actor", "p3.migrator")
+                .header("X-Roles", "system_admin")
+                .body(xactly)
+                .when().post("/api/v1/migration/spm/xactly")
+                .then().statusCode(200).extract().jsonPath();
+        assertEquals(1, (int) x.getInt("payees"), "xactly PAYEE lands");
+        assertEquals(1, (int) x.getInt("historyRows"), "xactly HISTORY lands");
+        assertEquals("1", scalar("SELECT count(*) FROM raw_transaction "
+                + "WHERE tenant_id = '" + TENANT + "' AND source_system = 'MIGRATION_XACTLY'"));
+
+        // Anaplan export shape
+        String anaplan = "record_type,payeeId,employeeNumber,fullName,email,role\n"
+                + "PAYEE,aaaaaaaa-3000-0000-0000-000000000008,ANA-1,Anaplan Rep,ana@example.test,AE\n"
+                + "record_type,periodKey,employeeNumber,amount\n"
+                + "HISTORY,2027-02,ANA-1,15000\n";
+        var a = given().contentType("text/csv")
+                .header("X-Tenant-Id", TENANT).header("X-Actor", "p3.migrator")
+                .header("X-Roles", "system_admin")
+                .body(anaplan)
+                .when().post("/api/v1/migration/spm/anaplan")
+                .then().statusCode(200).extract().jsonPath();
+        assertEquals(1, (int) a.getInt("historyRows"), "anaplan HISTORY lands");
+    }
+
+    @Test
+    @TestSecurity(user = "p3.migrator", roles = {"system_admin"})
+    void quotaAndPlanRecordsStageThroughRealSurfaces() {
+        // territory must exist for the quota to land (import-order rule)
+        String territory = given().contentType("application/json")
+                .header("X-Tenant-Id", TENANT).header("X-Actor", "p3.admin")
+                .header("X-Roles", "comp_admin")
+                .body(Map.of("name", "Migration West"))
+                .when().post("/api/v1/spm/territories")
+                .then().statusCode(200).extract().jsonPath().getString("territoryId");
+        String csv = "record_type,territory,periodKey,amount\n"
+                + "QUOTA,Migration West,2027-03,900000\n";
+        given().contentType("text/csv")
+                .header("X-Tenant-Id", TENANT).header("X-Actor", "p3.migrator")
+                .header("X-Roles", "system_admin")
+                .body(csv)
+                .when().post("/api/v1/migration/spm/varicent")
+                .then().statusCode(200)
+                .body("quotas", org.hamcrest.Matchers.equalTo(1));
+        assertEquals("900000.0000", scalar("SELECT quota_amount::text FROM quota_allocation "
+                + "WHERE territory_id = '" + territory + "' AND period_key = '2027-03'"),
+                "QUOTA landed through quota_allocation");
+
+        // PLAN: base 0.05 to 100000 then 0.08 — goes through the FR-406
+        // publish gate; the importer is stubbed OFFLINE in tests (compiler
+        // unreachable) so it reports the row as an error, proving the side
+        // door stays shut when the gate cannot run
+        String planCsv = "record_type,planName,baseRate,topRate,threshold\n"
+                + "PLAN,Varicent Base,0.05,0.08,100000\n";
+        var out = given().contentType("text/csv")
+                .header("X-Tenant-Id", TENANT).header("X-Actor", "p3.migrator")
+                .header("X-Roles", "system_admin")
+                .body(planCsv)
+                .when().post("/api/v1/migration/spm/varicent")
+                .then().statusCode(200).extract().jsonPath();
+        assertEquals(0, (int) out.getInt("plans"), "no implicit publish without the gate");
+        assertTrue(out.getList("errors").toString().contains("publish gate"),
+                "gate failure is reported, not swallowed: " + out.getList("errors"));
     }
 
     private void sql0(String sql) {

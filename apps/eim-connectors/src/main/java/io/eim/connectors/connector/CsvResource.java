@@ -59,7 +59,7 @@ public class CsvResource {
             result = ingestion.ingest(
                     ctx, "CSV",
                     upload.objectName() == null ? "manual_upload" : upload.objectName(),
-                    "deal_id", null, records, mapping);
+                    "deal_id", null, records, mapping, upload.csv());
         } catch (IllegalArgumentException e) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity(Map.of("error", e.getMessage())).build();

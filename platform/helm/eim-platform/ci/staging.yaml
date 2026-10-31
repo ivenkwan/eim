@@ -1,0 +1,35 @@
+# Staging posture (TG9-B): full OIDC (no dev header trust), OTel on,
+# replicas ×2, snapshot offload enabled — the release-candidate dressing
+# the GA posture doc gates deploys on.
+global:
+  databaseHost: eim-postgres
+  databasePort: "5432"
+  databaseName: eim
+  databaseUser: eim
+eim-postgres:
+  auth:
+    database: eim
+    username: eim
+eim-core-api:
+  authMode: oidc
+  otel: { enabled: true }
+  replicas: 2
+eim-connectors:
+  otel: { enabled: true }
+  replicas: 2
+  env:
+    EIM_SNAPSHOT_OFFLOAD_ENABLED: "true"
+eim-process:
+  otel: { enabled: true }
+  replicas: 2
+eim-calc-engine:
+  otel: { enabled: true }
+  replicas: 2
+  resources:
+    requests: { cpu: 100m, memory: 1Gi }
+    limits: { cpu: "1", memory: 2Gi }
+eim-plan-compiler:
+  otel: { enabled: true }
+eim-web:
+  otel: { enabled: true }
+  replicas: 2
