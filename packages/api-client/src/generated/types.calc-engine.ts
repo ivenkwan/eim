@@ -69,10 +69,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/calc/simulations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Monte Carlo plan simulation (FR-1001) — bootstrap historical deal distributions on scaled workers; liability percentiles + windfall detection */
+        post: operations["runMonteCarloSimulation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/calc/simulations/{simulationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fetch a simulation run (status, liability bands, windfall count) */
+        get: operations["getSimulationResult"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        SimulationRequest: {
+            tenantId: string;
+            periodKey: string;
+            planVersionHash: string;
+            iterations?: number;
+            seed?: number;
+        };
         HelloResponse: {
             service: string;
             /** @enum {string} */
@@ -293,6 +334,55 @@ export interface operations {
             };
             /** @description Replay failed (e.g. period not LOCKED) */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    runMonteCarloSimulation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SimulationRequest"];
+            };
+        };
+        responses: {
+            /** @description Simulation result with percentile bands */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No historical deals to sample */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getSimulationResult: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                simulationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Simulation summary */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

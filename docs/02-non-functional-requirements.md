@@ -436,6 +436,18 @@ machine-checked evidence: seals, dual-control pairing, action coverage,
 reconciliation). Boundary: proven on a simulated partner tenant; real
 design-partner onboarding is the production rollout step.
 
+**Phase 3 evidence status — 2026-10-31 (TG-8)**: full-SPM evidence green
+on the dev cluster with linked evidence in [the build log](build-log/TG-8.md)
+— Monte Carlo simulation (FR-1001: bootstrap over historical deals,
+reproducible seeds, worker fan-out, windfall detection), territory &
+quota planning with account-routing into credit assignment (FR-1002/1003),
+the partner portal identity plane (mTLS CN → partner, role-separated) with
+channel claims accruing on the core ledger (FR-1004/1005), NL plan modeling
+under the FR-406 gate + SoD human approval (FR-408), AI plan diagnostics
+(FR-1006), and the trace-grounded earnings explainer (FR-708). The
+simulation-scale and DB-contention behaviors stay within the NFR-21/25
+budgets established in TG-5/7.
+
 **Phase 2 evidence status — 2026-10-31 (TG-7)**: finance-grade accounting
 evidence green on the dev cluster with linked evidence in
 [doc build log](build-log/TG-7.md) — **NFR-25** (500k schedule-line

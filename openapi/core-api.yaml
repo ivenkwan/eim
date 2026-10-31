@@ -417,7 +417,265 @@ paths:
       responses:
         '200':
           description: Residency flags
+  /api/v1/spm/territories:
+    post:
+      operationId: createTerritory
+      summary: Territory design (effective-dated, hierarchical; FR-1002)
+      x-audit:
+        action: CONFIG_CHANGE
+        stream: config
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [name], properties: { name: { type: string }, parentTerritoryId: { type: [string, 'null'] }, effectiveStart: { type: [string, 'null'] } } }
+      responses:
+        '200':
+          description: Territory created
+    get:
+      operationId: listTerritories
+      summary: Territories with quota totals + active assignment counts
+      responses:
+        '200':
+          description: Territories
+  /api/v1/spm/territories/{territoryId}/assignments:
+    post:
+      operationId: assignTerritoryCoverage
+      summary: Assign a payee or account key to a territory (effective-dated, split fractions)
+      x-audit:
+        action: CONFIG_CHANGE
+        stream: config
+      parameters:
+        - { name: territoryId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, properties: { payeeId: { type: [string, 'null'] }, accountKey: { type: [string, 'null'] }, splitPct: { type: number }, effectiveStart: { type: [string, 'null'] } } }
+      responses:
+        '200':
+          description: Assignment recorded
+  /api/v1/spm/territories/{territoryId}/quotas:
+    post:
+      operationId: allocateQuota
+      summary: Quota allocation per period (FR-1002)
+      x-audit:
+        action: CONFIG_CHANGE
+        stream: config
+      parameters:
+        - { name: territoryId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [periodKey, quotaAmount], properties: { periodKey: { type: string }, quotaAmount: { type: string } } }
+      responses:
+        '200':
+          description: Quota allocated
+  /api/v1/spm/territories/realignment-preview:
+    post:
+      operationId: realignmentPreview
+      summary: What-if realignment preview — pure read of current account routes (FR-1002)
+      x-audit:
+        action: APPROVAL
+        stream: action
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: Account routes
+  /api/v1/spm/routing:
+    post:
+      operationId: createRoutingRule
+      summary: Account-routing rule feeding credit assignment (FR-1003)
+      x-audit:
+        action: CONFIG_CHANGE
+        stream: config
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, properties: { priority: { type: integer }, matchAccountKey: { type: [string, 'null'] }, matchComponent: { type: [string, 'null'] }, routeToTerritoryId: { type: [string, 'null'] }, routeToPayeeId: { type: [string, 'null'] } } }
+      responses:
+        '200':
+          description: Rule created
+    get:
+      operationId: listRoutingRules
+      summary: Routing rules in priority order
+      responses:
+        '200':
+          description: Rules
+  /api/v1/spm/routing/resolve:
+    get:
+      operationId: resolveAccountRouting
+      summary: Resolve the payees an account credits (rule → territory fan-out with splits; FR-1003)
+      parameters:
+        - { name: accountKey, in: query, required: true, schema: { type: string } }
+        - { name: component, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Routed payees
+  /api/v1/channel/partners:
+    post:
+      operationId: registerChannelPartner
+      summary: Register a channel partner (mTLS cert CN → partner identity, role-separated; FR-1004)
+      x-audit:
+        action: CONFIG_CHANGE
+        stream: config
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [orgName], properties: { orgName: { type: string }, certCn: { type: [string, 'null'] }, contactEmail: { type: [string, 'null'] } } }
+      responses:
+        '200':
+          description: Partner registered
+  /api/v1/channel/partners/whoami:
+    get:
+      operationId: partnerWhoami
+      summary: Partner mTLS CN → partner identity (never internal roles; FR-1004)
+      responses:
+        '200':
+          description: Partner identity
+        '401':
+          description: Missing/unknown cert CN
+  /api/v1/channel/partners/{partnerPayeeId}/statement:
+    get:
+      operationId: partnerStatement
+      summary: Partner statement (reuses the ledger machinery, partner-scoped; FR-1004)
+      parameters:
+        - { name: partnerPayeeId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Statement lines + total
+  /api/v1/channel/partners/{partnerPayeeId}/disputes:
+    post:
+      operationId: partnerDispute
+      summary: Partner self-service dispute (reuses dispute machinery; FR-1004)
+      x-audit:
+        action: DISPUTE_RESOLUTION
+        stream: action
+      parameters:
+        - { name: partnerPayeeId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [category, notes], properties: { category: { type: string }, notes: { type: string } } }
+      responses:
+        '202':
+          description: Dispute submitted
+  /api/v1/channel/claims:
+    post:
+      operationId: submitChannelClaim
+      summary: Channel claim — eligibility checked at submission (FR-1005)
+      x-audit:
+        action: APPROVAL
+        stream: action
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [partnerPayeeId, programCode, claimPeriodKey, claimedAmount], properties: { partnerPayeeId: { type: string }, programCode: { type: string }, claimPeriodKey: { type: string }, claimedAmount: { type: string } } }
+      responses:
+        '202':
+          description: Claim submitted (ELIGIBILITY_CHECKED or REJECTED)
+    get:
+      operationId: listChannelClaims
+      summary: Channel claims with status + accrual linkage
+      responses:
+        '200':
+          description: Claims
+  /api/v1/channel/claims/{claimId}/approve:
+    post:
+      operationId: approveChannelClaim
+      summary: Approve + accrue on the core engine (claimed × program rate → audited ledger entry; FR-1005)
+      x-audit:
+        action: CALCULATION_RUN
+        stream: action
+      parameters:
+        - { name: claimId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: ACCRUED with ledger entry id
+  /api/v1/ai/plan-modeling/requests:
+    post:
+      operationId: createNlModelRequest
+      summary: Natural-language plan modeling — deterministic grammar compiles a draft; human approval always required (FR-408)
+      x-audit:
+        action: PLAN_EDIT
+        stream: action
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [prompt], properties: { prompt: { type: string } } }
+      responses:
+        '200':
+          description: Draft compiled (PENDING_HUMAN)
+        '400':
+          description: Grammar rejected the prompt
+  /api/v1/ai/plan-modeling/requests/{requestId}/decision:
+    post:
+      operationId: decideNlModelRequest
+      summary: Human decision on an AI-generated plan (SoD — requester cannot approve; FR-408)
+      x-audit:
+        action: APPROVAL
+        stream: action
+      parameters:
+        - { name: requestId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [decision], properties: { decision: { type: string, enum: [APPROVED, REJECTED] } } }
+      responses:
+        '200':
+          description: Decision recorded
+        '403':
+          description: Requester cannot approve their own draft
+  /api/v1/ai/plan-diagnostics/{planVersionHash}:
+    post:
+      operationId: diagnosePlan
+      summary: AI plan diagnostics — windfall/cliff/gaming anomaly detection (FR-1006)
+      x-audit:
+        action: PLAN_PUBLISH
+        stream: action
+      parameters:
+        - { name: planVersionHash, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Findings persisted
+  /api/v1/ai/earnings-explainer/{ledgerId}:
+    get:
+      operationId: explainEarnings
+      summary: GenAI earnings explainer strictly grounded in the stored trace, with dispute handoff (FR-708)
+      parameters:
+        - { name: ledgerId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Narrative + dispute handoff
+  /api/v1/migration/spm/{source}:
+    post:
+      operationId: importLegacySpm
+      summary: Legacy-SPM migration importer (Varicent/Xactly/Anaplan shapes; TG8-ONB-1) — deterministic ids make re-imports idempotent
+      x-audit:
+        action: CONFIG_CHANGE
+        stream: config
+      parameters:
+        - { name: source, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          text/csv:
+            schema: { type: string }
+      responses:
+        '200':
+          description: Import summary with per-row errors
   /api/v1/partners:
+
 
     post:
       operationId: onboardPartner

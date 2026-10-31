@@ -274,6 +274,75 @@ data:
             bearer_only: true
             ssl_verify: false
             access_token_in_authorization_header: true
+      # Channel/partner portal (TG8-SEC-1, FR-1004): partner traffic is
+      # authenticated by mTLS client certificates, NOT bearer OIDC — in the
+      # production posture the APISIX ssl block verifies the partner CA and
+      # exposes the verified subject as X-Client-Cert-CN (NFR-51); the dev
+      # kind cluster accepts the forwarded header and core-api enforces the
+      # CN→partner mapping (whoami). Partner identities never hold internal
+      # roles.
+      - uri: /api/v1/channel/*
+        upstream:
+          type: roundrobin
+          nodes:
+            "eim-core-api:8080": 1
+        plugins:
+          proxy-rewrite:
+            headers:
+              set:
+                X-Auth-Token: $http_authorization
+                X-Client-Cert-CN: $http_x_client_cert_cn
+      - uri: /api/v1/spm/*
+        upstream:
+          type: roundrobin
+          nodes:
+            "eim-core-api:8080": 1
+        plugins:
+          proxy-rewrite:
+            headers:
+              set:
+                X-Auth-Token: $http_authorization
+          openid-connect:
+            client_id: eim-gateway
+            client_secret: {{ .Values.oidcClientSecret | required "eim-apisix.oidcClientSecret is required (NFR-53)" | quote }}
+            discovery: http://eim-keycloak:8080/realms/eim/.well-known/openid-configuration
+            bearer_only: true
+            ssl_verify: false
+            access_token_in_authorization_header: true
+      - uri: /api/v1/ai/*
+        upstream:
+          type: roundrobin
+          nodes:
+            "eim-core-api:8080": 1
+        plugins:
+          proxy-rewrite:
+            headers:
+              set:
+                X-Auth-Token: $http_authorization
+          openid-connect:
+            client_id: eim-gateway
+            client_secret: {{ .Values.oidcClientSecret | required "eim-apisix.oidcClientSecret is required (NFR-53)" | quote }}
+            discovery: http://eim-keycloak:8080/realms/eim/.well-known/openid-configuration
+            bearer_only: true
+            ssl_verify: false
+            access_token_in_authorization_header: true
+      - uri: /api/v1/migration/*
+        upstream:
+          type: roundrobin
+          nodes:
+            "eim-core-api:8080": 1
+        plugins:
+          proxy-rewrite:
+            headers:
+              set:
+                X-Auth-Token: $http_authorization
+          openid-connect:
+            client_id: eim-gateway
+            client_secret: {{ .Values.oidcClientSecret | required "eim-apisix.oidcClientSecret is required (NFR-53)" | quote }}
+            discovery: http://eim-keycloak:8080/realms/eim/.well-known/openid-configuration
+            bearer_only: true
+            ssl_verify: false
+            access_token_in_authorization_header: true
       # Health/hello stays open for probes (read-only, no data).
       - uri: /api/v1/hello
         upstream:

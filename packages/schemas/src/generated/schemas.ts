@@ -100,6 +100,14 @@ export const RunStatsSchema = z.strictObject({
   waves: z.number().int(),
 });
 
+export const SimulationRequestSchema = z.strictObject({
+  iterations: z.number().int().optional(),
+  periodKey: z.string(),
+  planVersionHash: z.string(),
+  seed: z.number().int().optional(),
+  tenantId: z.string(),
+});
+
 export const ConnectorRunResultSchema = z.strictObject({
   accepted: z.number().int(),
   batchId: z.string(),

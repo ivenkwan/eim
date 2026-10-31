@@ -91,8 +91,44 @@ paths:
           description: Missing identifiers
         '500':
           description: Replay failed (e.g. period not LOCKED)
+  /api/v1/calc/simulations:
+    post:
+      operationId: runMonteCarloSimulation
+      summary: Monte Carlo plan simulation (FR-1001) — bootstrap historical deal distributions on scaled workers; liability percentiles + windfall detection
+      x-audit:
+        action: CALCULATION_RUN
+        stream: action
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimulationRequest'
+      responses:
+        '200':
+          description: Simulation result with percentile bands
+        '409':
+          description: No historical deals to sample
+  /api/v1/calc/simulations/{simulationId}:
+    get:
+      operationId: getSimulationResult
+      summary: Fetch a simulation run (status, liability bands, windfall count)
+      parameters:
+        - { name: simulationId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Simulation summary
 components:
   schemas:
+    SimulationRequest:
+      type: object
+      required: [tenantId, periodKey, planVersionHash]
+      properties:
+        tenantId: { type: string }
+        periodKey: { type: string }
+        planVersionHash: { type: string }
+        iterations: { type: integer }
+        seed: { type: integer }
     HelloResponse:
       type: object
       required: [service, status, message]

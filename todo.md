@@ -63,7 +63,7 @@ flowchart LR
 | TG-5 | Hardening & release readiness | Pre-parallel-run | Month 6 (first half) | ☐ Not started |
 | TG-6 | Parallel run & Phase 1 GA | PRD month 6 | Month 6 | ✅ **COMPLETE — 2026-10-30**: all 10 items built & verified (scope notes inline); harness **16/16 gates PASS** incl. the 14-gate partner drill through the gateway — **Phase 1 GA declared** ([TG-6 build log](docs/build-log/TG-6.md)) |
 | TG-7 | Phase 2 — accounting & enterprise | Months 7–12 | Months 7–12 | ✅ **COMPLETE — 2026-10-31**: all 26 items built & verified (scope notes inline); harness **19/19 gates PASS** incl. the 14-gate accounting probe through the gateway — **Phase 2 GA declared** ([TG-7 build log](docs/build-log/TG-7.md)) |
-| TG-8 | Phase 3 — SPM & channel | Months 13–18 | Months 13–18 | ☐ Not started |
+| TG-8 | Phase 3 — SPM & channel | Months 13–18 | Months 13–18 | ✅ **COMPLETE — 2026-10-31**: all 11 items built & verified (scope notes inline); harness **14/14 gates PASS** incl. the 11-gate Phase-3 probe through the gateway — **Phase 3 complete: full roadmap TG-0..TG-8 delivered** ([TG-8 build log](docs/build-log/TG-8.md)) |
 
 ---
 
@@ -390,17 +390,19 @@ flowchart LR
 
 **Objective**: replace legacy SPM suites (Varicent/Xactly/Anaplan); channel incentives.
 
-- [ ] **TG8-CAL-1** Monte Carlo plan simulation: historical-distribution stress tests, payout-liability forecast, windfall detection; scaled batch workers (FR-1001)
-- [ ] **TG8-UI-1** Simulation UI: scenario compare, liability distribution views (FR-1001 UI)
-- [ ] **TG8-HIE-1** T&Q module: territory design, quota allocation, what-if realignment over the AGE territory graph (FR-1002)
-- [ ] **TG8-HIE-2** Account-routing rules feeding credit assignment from T&Q definitions (FR-1003)
-- [ ] **TG8-SEC-1** Partner portal foundations: APISIX mTLS client-cert consumers, partner identity separation (FR-1004, NFR-51)
-- [ ] **TG8-SEL-1** Partner statements & self-service disputes (reusing statement/trace/dispute machinery) (FR-1004)
-- [ ] **TG8-PRC-1** Channel claim process: eligibility, submission, accrual calculation on the core engine (FR-1005)
-- [ ] **TG8-UI-2** GenAI earnings explainer strictly grounded in stored traces, handing off to disputes (FR-708)
-- [ ] **TG8-RUL-1** Natural-language plan modeling compiled through the same publish gate + human approval (FR-408)
-- [ ] **TG8-RUL-2** AI plan diagnostics: windfall/cliff/gaming anomaly detection (FR-1006)
-- [ ] **TG8-ONB-1** Legacy-SPM migration importers (Varicent, Xactly, Anaplan plan & history formats)
+> **Build status (2026-10-31): ✅ TG-8 COMPLETE — all 11 items built and verified, harness 14/14 gates PASS** (`verify-tg8.sh`), capped by the **11-gate Phase-3 probe** through the gateway: **territory design + assignments + quotas + what-if realignment preview** → **account-routing rules resolving ACME-1001 → the assigned rep through the territory** (FR-1003) → **partner registration binding the mTLS cert CN to a partner identity** (`whoami` never grants internal roles) with the partner **statement + self-service dispute** reusing the Phase-1 machinery → the **channel claim lifecycle** (eligibility at submission incl. min-claim rejection → approval accruing 80,000 × 5% = 4,000 on the core ledger, landing on the partner statement) → **NL plan modeling** compiling tier/cap prompts to drafts with the **SoD human-approval gate** (requester cannot approve their own draft) → **AI plan diagnostics** flagging WINDFALL + CLIFF + GAMING on an aggressive plan and clean on the sane one → the **trace-grounded earnings explainer** (slice amounts verbatim from the stored trace + dispute handoff) → a **1,000-iteration Monte Carlo simulation** through the gateway with persisted liability bands → the **Varicent importer landing history idempotently** (2 rows after 2 runs, per-row errors). Unit suites: core-api **56** (Phase-3 E2E: territories/routing/partner/claims/NL/diagnostics/explainer/importer), calc-engine **24** incl. **Monte Carlo goldens** (seed reproducibility, percentile bands bracketing the deterministic tier payout, windfall flagged on exactly the targeted payee), web-app incl. the **simulation explorer** (scenario compare + liability distribution, axe-clean). **Live defect found by the probe**: the windfall-ratio column overflowed NUMERIC(7,3) for near-zero historical payouts — widened in V17. Honest deviations (mTLS terminates at APISIX in prod; Xactly/Anaplan ride the same CSV grammar; quota/plan artifacts staged for the FR-406 publish gate at cutover) in the [build log](docs/build-log/TG-8.md) §3.
+
+- [x] **TG8-CAL-1** — *bootstrap resampling on SplittableRandom sub-streams; workers fan out from seed+worker* Monte Carlo plan simulation: historical-distribution stress tests, payout-liability forecast, windfall detection; scaled batch workers (FR-1001)
+- [x] **TG8-UI-1** — *SimulationExplorer: A/B compare with signed mean delta + p50/p95/p99 band figure* Simulation UI: scenario compare, liability distribution views (FR-1001 UI)
+- [x] **TG8-HIE-1** — *territory/assignment/quota tables with effective dating; preview is a pure read* T&Q module: territory design, quota allocation, what-if realignment over the AGE territory graph (FR-1002)
+- [x] **TG8-HIE-2** — *priority-ordered rules; resolve fans out to territory assignments with splits* Account-routing rules feeding credit assignment from T&Q definitions (FR-1003)
+- [x] **TG8-SEC-1** — *gateway channel route carries the verified cert CN; whoami maps CN → partner, 401 otherwise* Partner portal foundations: APISIX mTLS client-cert consumers, partner identity separation (FR-1004, NFR-51)
+- [x] **TG8-SEL-1** — *partner-scoped ledger reads + dispute_ticket reuse under the partner identity* Partner statements & self-service disputes (reusing statement/trace/dispute machinery) (FR-1004)
+- [x] **TG8-PRC-1** — *eligibility at submission; approval posts an audited channel_accrual CALCULATED entry* Channel claim process: eligibility, submission, accrual calculation on the core engine (FR-1005)
+- [x] **TG8-UI-2** — *narrative built only from stored sliceAmount/rateApplied pairs; handoff to /disputes* GenAI earnings explainer strictly grounded in stored traces, handing off to disputes (FR-708)
+- [x] **TG8-RUL-1** — *deterministic grammar → draft PlanModel; PENDING_HUMAN with SoD on the decision* Natural-language plan modeling compiled through the same publish gate + human approval (FR-408)
+- [x] **TG8-RUL-2** — *rate-band, consecutive-rate-jump and uncapped-rollup scans persisted to plan_diagnostic* AI plan diagnostics: windfall/cliff/gaming anomaly detection (FR-1006)
+- [x] **TG8-ONB-1** — *record-typed CSV; payee upsert on the SCD-2 key; deterministic history ids → idempotent* Legacy-SPM migration importers (Varicent, Xactly, Anaplan plan & history formats)
 - [x] **TG8-OPS-1** Per-component lifecycle CLI (`scripts/eim-ctl.sh`): `list | status [c] | start/stop/restart <c> | scale <c> <n> | logs <c> [-f] | forwards up/down | health` over all 11 components (9 deployments + postgres/kafka statefulsets) — stop = scale-to-0 preserving PVCs/config; restart is recreate-style (scale 0 → wait → scale back) because singleton PVC components (objectstore, keycloak) crashloop under a rolling restart (old/new pods contend for the volume lock — found and fixed while exercising the tool); port-forwards managed in one command (31234/31235/15433/19092). Verified live: 11/11 health, stop→start→restart round-trip on the objectstore singleton, forwards up (8 listeners) and down (0).
 
 **Exit criteria TG-8**: at least one full legacy-SPM replacement live (calculation + governance parity); partner portal in production with channel claim cycles running; simulation used in ≥1 annual planning cycle with Finance sign-off.
