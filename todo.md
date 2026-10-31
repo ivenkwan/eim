@@ -401,6 +401,7 @@ flowchart LR
 - [ ] **TG8-RUL-1** Natural-language plan modeling compiled through the same publish gate + human approval (FR-408)
 - [ ] **TG8-RUL-2** AI plan diagnostics: windfall/cliff/gaming anomaly detection (FR-1006)
 - [ ] **TG8-ONB-1** Legacy-SPM migration importers (Varicent, Xactly, Anaplan plan & history formats)
+- [x] **TG8-OPS-1** Per-component lifecycle CLI (`scripts/eim-ctl.sh`): `list | status [c] | start/stop/restart <c> | scale <c> <n> | logs <c> [-f] | forwards up/down | health` over all 11 components (9 deployments + postgres/kafka statefulsets) — stop = scale-to-0 preserving PVCs/config; restart is recreate-style (scale 0 → wait → scale back) because singleton PVC components (objectstore, keycloak) crashloop under a rolling restart (old/new pods contend for the volume lock — found and fixed while exercising the tool); port-forwards managed in one command (31234/31235/15433/19092). Verified live: 11/11 health, stop→start→restart round-trip on the objectstore singleton, forwards up (8 listeners) and down (0).
 
 **Exit criteria TG-8**: at least one full legacy-SPM replacement live (calculation + governance parity); partner portal in production with channel claim cycles running; simulation used in ≥1 annual planning cycle with Finance sign-off.
 
